@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="הדרכות">
+<title>הדרכות עובדים – אחים אמר</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script>
+/* =====================================================================
+   הגדרות חיבור – זה המקום היחיד שצריך לערוך (שלב 3 במדריך)
+   ===================================================================== */
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://PROJECT_REF.supabase.co",
+  SUPABASE_KEY: "PASTE_ANON_OR_PUBLISHABLE_KEY_HERE"
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f3f4f7; --card:#fff; --ink:#14213d; --ink2:#5b6475; --line:#e3e6ec;
+  --brand:#14213d; --accent:#f59e0b; --primary:#1d4ed8;
+  --green:#15803d; --green-bg:#dcfce7; --orange:#c2410c; --orange-bg:#ffedd5;
+  --red:#b91c1c; --red-bg:#fee2e2; --gray:#6b7280; --gray-bg:#eceef2;
+  --radius:14px; --shadow:0 1px 2px rgba(20,33,61,.06),0 4px 14px rgba(20,33,61,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Heebo,Arial,sans-serif;font-size:16px;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+a{color:var(--primary)}
+
+/* ---- top bar & nav ---- */
+header.top{background:var(--brand);color:#fff;padding:14px 16px calc(14px);position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px}
+header.top .logo{width:36px;height:36px;border-radius:10px;background:var(--accent);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:18px;flex:none}
+header.top h1{font-size:17px;margin:0;line-height:1.2;flex:1}
+header.top h1 small{display:block;font-weight:400;opacity:.7;font-size:12px}
+header.top .who{font-size:13px;opacity:.85;text-align:left}
+header.top .who button{background:none;border:0;color:#fff;text-decoration:underline;padding:0;font-size:13px;cursor:pointer}
+nav.tabs{position:fixed;bottom:0;right:0;left:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;border:0;background:none;padding:9px 2px 8px;font-size:12px;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.on{color:var(--primary);font-weight:700}
+main{max-width:1100px;margin:0 auto;padding:16px 16px 96px}
+@media(min-width:900px){
+  nav.tabs{position:sticky;top:64px;bottom:auto;max-width:1100px;margin:0 auto;border:0;background:transparent;padding:12px 16px 0;gap:8px;justify-content:flex-start}
+  nav.tabs button{flex:none;flex-direction:row;gap:8px;font-size:15px;padding:10px 16px;border-radius:10px;background:#fff;box-shadow:var(--shadow)}
+  nav.tabs button.on{background:var(--primary);color:#fff}
+  main{padding-bottom:40px}
+}
+
+/* ---- generic ---- */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:700;font-size:16px;cursor:pointer;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--gray-bg);color:var(--ink)}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.danger{background:var(--red-bg);color:var(--red)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.small{min-height:38px;padding:8px 12px;font-size:14px;border-radius:10px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.55;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1}
+label.f{display:block;font-size:14px;color:var(--ink2);margin:12px 0 5px;font-weight:500}
+input.i,select.i,textarea.i{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;background:#fff;min-height:48px;font-size:16px}
+input.i:focus,select.i:focus,textarea.i:focus{outline:none;border-color:var(--primary)}
+textarea.i{min-height:70px;resize:vertical}
+.muted{color:var(--ink2)}
+h2.sec{font-size:18px;margin:22px 0 10px}
+.toast{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;z-index:100;font-weight:500;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.toast.err{background:var(--red)}
+
+/* ---- status ---- */
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.s-green{background:var(--green-bg);color:var(--green)}
+.s-orange{background:var(--orange-bg);color:var(--orange)}
+.s-red{background:var(--red-bg);color:var(--red)}
+.s-gray{background:var(--gray-bg);color:var(--gray)}
+.s-na{background:transparent;color:#a3a9b5;font-weight:400}
+.s-na::before{display:none}
+
+/* ---- dashboard ---- */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.stats{grid-template-columns:repeat(5,1fr)}}
+.stat{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;border:2px solid transparent;cursor:pointer;text-align:right}
+.stat .n{font-size:30px;font-weight:800;line-height:1.1}
+.stat .t{font-size:13px;color:var(--ink2);margin-top:4px}
+.stat.on{border-color:var(--primary)}
+.stat.c-green .n{color:var(--green)} .stat.c-orange .n{color:var(--orange)} .stat.c-red .n{color:var(--red)} .stat.c-gray .n{color:var(--gray)}
+.stat:first-child{grid-column:1/-1}
+@media(min-width:700px){.stat:first-child{grid-column:auto}}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 10px}
+.toolbar .search{flex:1 1 220px;position:relative}
+.toolbar .search input{padding-right:40px}
+.toolbar .search svg{position:absolute;right:12px;top:13px;width:22px;height:22px;color:var(--ink2)}
+.toolbar select{flex:1 1 140px;width:auto}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;white-space:nowrap;cursor:pointer;font-weight:500}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.list{display:flex;flex-direction:column;gap:8px}
+.emp{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;cursor:pointer;display:grid;grid-template-columns:1fr;gap:8px;border-right:5px solid var(--line)}
+.emp.b-red{border-right-color:var(--red)} .emp.b-orange{border-right-color:var(--orange)} .emp.b-green{border-right-color:var(--green)} .emp.b-gray{border-right-color:#c4c8d0}
+.emp .nm{font-weight:700;font-size:16px}
+.emp .meta{font-size:13px;color:var(--ink2)}
+.emp .trs{display:flex;flex-wrap:wrap;gap:6px 14px}
+.emp .tr{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)}
+.emp.inactive{opacity:.6}
+@media(min-width:900px){
+  .emp{grid-template-columns:260px 1fr;align-items:center}
+  .emp .trs{gap:24px}
+}
+.empty{text-align:center;color:var(--ink2);padding:40px 10px}
+.fab{position:fixed;left:16px;bottom:78px;z-index:25;border-radius:999px;box-shadow:0 8px 24px rgba(29,78,216,.4);padding:14px 20px}
+@media(min-width:900px){.fab{bottom:28px;left:28px}}
+
+/* ---- sheet (modal) ---- */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:94vh;overflow:auto;border-radius:20px 20px 0 0;padding:0 0 calc(20px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:20px;max-height:90vh}}
+.sheet .sh{position:sticky;top:0;background:var(--bg);padding:14px 16px 10px;display:flex;align-items:center;gap:10px;z-index:2;border-bottom:1px solid var(--line)}
+.sheet .sh h3{margin:0;font-size:18px;flex:1}
+.sheet .sb{padding:12px 16px}
+.x{border:0;background:var(--gray-bg);width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;flex:none}
+.tcard{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
+.tcard .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tcard .hd b{flex:1;font-size:16px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;margin-bottom:10px}
+.kv span:nth-child(odd){color:var(--ink2)}
+.calc{background:var(--green-bg);color:var(--green);border-radius:11px;padding:12px;font-weight:700;margin-top:12px}
+.hist{font-size:14px;border-top:1px solid var(--line);margin-top:10px;padding-top:8px}
+.hist div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.check{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:15px;cursor:pointer}
+.check input{width:22px;height:22px}
+
+/* ---- tables ---- */
+.tbl{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+.tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+.tbl th{background:#f8f9fb;font-weight:700;position:sticky;top:0}
+.scroll{overflow:auto;max-height:55vh;border-radius:12px;border:1px solid var(--line)}
+
+/* ---- login ---- */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(160deg,#14213d 0%,#1e3a8a 100%)}
+.login .card{width:100%;max-width:400px;padding:24px}
+.login .logo{width:56px;height:56px;border-radius:16px;background:var(--accent);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:28px;margin-bottom:10px}
+.login h1{margin:0 0 4px;font-size:22px}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid rgba(0,0,0,.15);border-top-color:var(--primary);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login" class="login hidden">
+  <div class="card">
+    <div class="logo">א</div>
+    <h1>הדרכות עובדים</h1>
+    <div class="muted" style="margin-bottom:10px">אחים אמר – שאיבת בטון</div>
+    <form id="loginForm">
+      <label class="f">דוא"ל</label>
+      <input class="i" type="email" id="lgEmail" autocomplete="username" required dir="ltr">
+      <label class="f">סיסמה</label>
+      <input class="i" type="password" id="lgPass" autocomplete="current-password" required minlength="6" dir="ltr">
+      <button class="btn primary block" style="margin-top:18px" id="lgBtn">כניסה</button>
+    </form>
+    <div class="row" style="justify-content:space-between;margin-top:14px;font-size:14px">
+      <a href="#" id="lgSignup">משתמש חדש? הרשמה</a>
+      <a href="#" id="lgForgot">שכחתי סיסמה</a>
+    </div>
+    <div id="lgMsg" class="muted" style="margin-top:12px;font-size:14px"></div>
+  </div>
+</div>
+
+<!-- ===================== PENDING / CONFIG ===================== -->
+<div id="notice" class="login hidden"><div class="card"><div class="logo">!</div><div id="noticeBody"></div></div></div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="logo">א</div>
+    <h1>הדרכות עובדים<small id="hdrCompany">אחים אמר</small></h1>
+    <div class="who"><div id="hdrUser"></div><button id="logoutBtn">יציאה</button></div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-v="dash" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>לוח בקרה</button>
+    <button data-v="io"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Excel</button>
+    <button data-v="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>התראות</button>
+    <button data-v="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>הגדרות</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="v-dash">
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="i" id="q" placeholder="חיפוש לפי שם או מספר עובד" autocomplete="off">
+        </div>
+        <select class="i" id="fType"></select>
+        <select class="i" id="fSort">
+          <option value="expiry">מיון: תפוגה הקרובה ביותר</option>
+          <option value="name">מיון: שם</option>
+          <option value="num">מיון: מספר עובד</option>
+        </select>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="muted" id="countLine" style="font-size:14px;margin-bottom:8px"></div>
+      <div class="list" id="list"></div>
+      <button class="btn primary fab" id="addBtn">＋ עובד חדש</button>
+    </section>
+
+    <!-- IMPORT / EXPORT -->
+    <section id="v-io" class="hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">ייצוא דוח Excel</h2>
+        <p class="muted" style="margin-top:0">כל העובדים, מצב ההדרכות וההיסטוריה המלאה. מומלץ לשמור עותק פעם בחודש כגיבוי.</p>
+        <button class="btn green" id="exportBtn">⬇ הורדת דוח Excel</button>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2 class="sec" style="margin-top:0">ייבוא עובדים מקובץ Excel</h2>
+        <p class="muted" style="margin-top:0">הורד את התבנית, מלא את העובדים ותאריכי ההדרכה, והעלה אותה. לפני השמירה תוצג תצוגה מקדימה. עובד שמספרו כבר קיים – יעודכן ולא ייווצר פעמיים.</p>
+        <div class="row">
+          <button class="btn ghost" id="tplBtn">⬇ תבנית ריקה</button>
+          <label class="btn primary">⬆ בחירת קובץ<input type="file" id="impFile" accept=".xlsx,.xls,.csv" class="hidden"></label>
+        </div>
+        <div id="impPreview"></div>
+      </div>
+    </section>
+
+    <!-- NOTIFICATION LOG -->
+    <section id="v-log" class="hidden">
+      <div class="card">
+        <h2 class="sec" style="margin-top:0">התראות בדוא"ל</h2>
+        <p class="muted" style="margin-top:0" id="logInfo"></p>
+        <div class="row" id="logAdmin">
+          <button class="btn ghost small" id="testMailBtn">✉ שלח מייל בדיקה</button>
+          <button class="btn ghost small" id="runNowBtn">▶ הרץ בדיקה יומית עכשיו</button>
+        </div>
+      </div>
+      <h2 class="sec">היסטוריית שליחות</h2>
+      <div id="logList"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="v-set" class="hidden"></section>
+  </main>
+</div>
+
+<div id="overlay" class="overlay hidden"><div class="sheet" id="sheet"></div></div>
+
+<script>
+(() => {
+"use strict";
+const CFG = window.APP_CONFIG;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------------- configuration check ---------------- */
+if (!window.supabase || !CFG || CFG.SUPABASE_URL.includes("PROJECT_REF") || CFG.SUPABASE_KEY.startsWith("PASTE")) {
+  showNotice(`<h1 style="margin:0 0 8px;font-size:20px">המערכת עוד לא מחוברת</h1>
+    <p>יש להדביק בקובץ <b>index.html</b> את כתובת ה-Supabase ואת המפתח (שלב 3 במדריך ההתקנה).</p>`);
+  return;
+}
+const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_KEY);
+
+/* ---------------- state ---------------- */
+const S = {
+  user: null, profile: null, types: [], employees: [], trainings: [], settings: {},
+  f: { q: "", status: "all", type: "all", sort: "expiry" },
+};
+const isAdmin = () => S.profile?.role === "admin";
+
+/* ---------------- dates ---------------- */
+const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+const fmt = (iso) => iso ? `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}` : "—";
+function daysBetween(a, b) {
+  const t = (s) => Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10));
+  return Math.round((t(b) - t(a)) / 86400000);
+}
+function addMonths(iso, m) { // זהה לחישוב במסד הנתונים
+  let y = +iso.slice(0,4), mo = +iso.slice(5,7) - 1 + m, d = +iso.slice(8,10);
+  y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12;
+  const dim = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+  return `${y}-${String(mo+1).padStart(2,"0")}-${String(Math.min(d, dim)).padStart(2,"0")}`;
+}
+const daysText = (d) => d > 1 ? `נותרו ${d} ימים` : d === 1 ? "נותר יום אחד" : d === 0 ? "פג היום" : `פג לפני ${-d} ימים`;
+
+/* ---------------- status logic ---------------- */
+// ירוק: נותרו יותר מ-14 יום | כתום: 14 יום או פחות | אדום: פג | אפור: אין נתונים
+function required(type, emp) {
+  return type.required_for === "all" || (type.required_for === "operator" && emp.job_role === "operator");
+}
+function trStatus(emp, type) {
+  const t = S.trainings.find(x => x.employee_id === emp.id && x.type_code === type.code);
+  const req = required(type, emp);
+  if (!t) return { key: req ? "gray" : "na", req, t: null, days: null, label: req ? "חסר" : "לא נדרש" };
+  const days = daysBetween(todayISO(), t.expiry_date);
+  const key = days <= 0 ? "red" : days <= (type.alert_days ?? 14) ? "orange" : "green";
+  return { key, req, t, days, label: key === "red" ? "פג תוקף" : key === "orange" ? daysText(days) : "בתוקף" };
+}
+const RANK = { red: 4, orange: 3, gray: 2, green: 1, na: 0 };
+function empSummary(emp, types = activeTypes()) {
+  const st = types.map(tp => ({ type: tp, ...trStatus(emp, tp) }));
+  const worst = st.filter(s => s.req || s.t).reduce((w, s) => RANK[s.key] > RANK[w] ? s.key : w, "na");
+  const exps = st.filter(s => s.t).map(s => s.t.expiry_date).sort();
+  return { st, worst, nearest: exps[0] ?? null };
+}
+const activeTypes = () => S.types.filter(t => t.active);
+
+/* ---------------- ui helpers ---------------- */
+function toast(msg, err = false) {
+  const el = document.createElement("div");
+  el.className = "toast" + (err ? " err" : "");
+  el.textContent = msg; document.body.appendChild(el);
+  setTimeout(() => el.remove(), err ? 5000 : 2600);
+}
+function fail(e) { console.error(e); toast("שגיאה: " + (e?.message || e), true); }
+function showNotice(html) { $("#notice").classList.remove("hidden"); $("#noticeBody").innerHTML = html; }
+function openSheet(title, body, onBack) {
+  $("#sheet").innerHTML = `<div class="sh">${onBack ? `<button class="x" id="shBack" title="חזרה">→</button>` : ""}<h3>${title}</h3><button class="x" id="shClose">✕</button></div><div class="sb">${body}</div>`;
+  $("#overlay").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  $("#shClose").onclick = closeSheet;
+  if (onBack) $("#shBack").onclick = onBack;
+  $("#sheet").scrollTop = 0;
+}
+function closeSheet() { $("#overlay").classList.add("hidden"); document.body.style.overflow = ""; }
+$("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeSheet(); });
+async function busy(btn, fn) {
+  const txt = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spinner"></span>`;
+  try { return await fn(); } finally { btn.disabled = false; btn.innerHTML = txt; }
+}
+
+/* ---------------- auth ---------------- */
+let signupMode = false;
+$("#lgSignup").onclick = (e) => {
+  e.preventDefault(); signupMode = !signupMode;
+  $("#lgBtn").textContent = signupMode ? "יצירת משתמש" : "כניסה";
+  $("#lgSignup").textContent = signupMode ? "יש לי משתמש – כניסה" : "משתמש חדש? הרשמה";
+  $("#lgMsg").textContent = signupMode ? "אחרי ההרשמה מנהל המערכת צריך לאשר את המשתמש." : "";
+};
+$("#lgForgot").onclick = async (e) => {
+  e.preventDefault();
+  const email = $("#lgEmail").value.trim();
+  if (!email) return ($("#lgMsg").textContent = "הזן קודם את כתובת הדוא\"ל.");
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split("#")[0] });
+  $("#lgMsg").textContent = error ? error.message : "נשלח מייל לאיפוס סיסמה.";
+};
+$("#loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("#lgEmail").value.trim(), password = $("#lgPass").value;
+  await busy($("#lgBtn"), async () => {
+    const r = signupMode ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (r.error) {
+      $("#lgMsg").textContent = /invalid login/i.test(r.error.message) ? "דוא\"ל או סיסמה שגויים." : r.error.message;
+      return;
+    }
+    if (signupMode && !r.data.session) $("#lgMsg").textContent = "נשלח אליך מייל לאימות הכתובת. אחרי האימות אפשר להיכנס.";
+  });
+};
+$("#logoutBtn").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+sb.auth.onAuthStateChange((ev, session) => {
+  if (ev === "PASSWORD_RECOVERY") setTimeout(newPasswordPrompt, 300);
+  if (session?.user && S.user?.id !== session.user.id) { S.user = session.user; boot(); }
+  if (!session) { S.user = null; $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); }
+});
+async function newPasswordPrompt() {
+  const p = prompt("הזן סיסמה חדשה (לפחות 6 תווים):");
+  if (!p) return;
+  const { error } = await sb.auth.updateUser({ password: p });
+  error ? fail(error) : toast("הסיסמה עודכנה");
+}
+
+async function boot() {
+  $("#login").classList.add("hidden");
+  const { data: prof, error } = await sb.from("profiles").select("*").eq("id", S.user.id).maybeSingle();
+  if (error) return fail(error);
+  if (!prof || !prof.active) {
+    showNotice(`<h1 style="margin:0 0 8px;font-size:20px">ממתין לאישור מנהל</h1>
+      <p>המשתמש <b dir="ltr">${esc(S.user.email)}</b> נוצר, אך עדיין לא אושר. בקש ממנהל המערכת לאשר אותך במסך "הגדרות".</p>
+      <button class="btn ghost" onclick="location.reload()">רענון</button> <button class="btn ghost" id="pendOut">יציאה</button>`);
+    $("#pendOut").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    return;
+  }
+  S.profile = prof;
+  $("#notice").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  $("#hdrUser").textContent = (prof.full_name || S.user.email) + (isAdmin() ? " · מנהל" : "");
+  await loadAll();
+  show("dash");
+}
+
+/* ---------------- data ---------------- */
+async function loadAll() {
+  const [ty, em, tr, st] = await Promise.all([
+    sb.from("training_types").select("*").order("sort_order"),
+    sb.from("employees").select("*").order("full_name"),
+    sb.from("trainings").select("*").eq("is_current", true),
+    sb.from("settings").select("*"),
+  ]);
+  for (const r of [ty, em, tr, st]) if (r.error) return fail(r.error);
+  S.types = ty.data; S.employees = em.data; S.trainings = tr.data;
+  S.settings = Object.fromEntries(st.data.map(r => [r.key, r.value]));
+  $("#hdrCompany").textContent = S.settings.company_name || "אחים אמר";
+  renderDash();
+}
+
+/* ---------------- navigation ---------------- */
+function show(v) {
+  $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  ["dash", "io", "log", "set"].forEach(x => $("#v-" + x).classList.toggle("hidden", x !== v));
+  if (v === "dash") renderDash();
+  if (v === "log") renderLog();
+  if (v === "set") renderSettings();
+  if (v === "io") $("#impPreview").innerHTML = "";
+  window.scrollTo(0, 0);
+}
+$$("#tabs button").forEach(b => b.onclick = () => show(b.dataset.v));
+
+/* ================= DASHBOARD ================= */
+const FILTERS = [
+  ["all", "פעילים"], ["red", "פג תוקף"], ["d14", "יפוגו תוך 14 יום"], ["d30", "יפוגו תוך 30 יום"],
+  ["gray", "ללא הדרכה מתועדת"], ["ok", "הכל בתוקף"], ["inactive", "לא פעילים"],
+];
+function renderDash() {
+  const types = activeTypes();
+  // סינון לפי סוג הדרכה
+  const fType = $("#fType");
+  const opts = `<option value="all">כל סוגי ההדרכות</option>` + types.map(t => `<option value="${esc(t.code)}">${esc(t.name)}</option>`).join("");
+  if (fType.innerHTML !== opts) fType.innerHTML = opts;
+  fType.value = S.f.type;
+  const shownTypes = S.f.type === "all" ? types : types.filter(t => t.code === S.f.type);
+
+  // סיכום
+  const act = S.employees.filter(e => e.active);
+  let allOk = 0, soon = 0, expired = 0, missing = 0;
+  for (const e of act) {
+    const sm = empSummary(e, types);
+    if (sm.st.filter(s => s.req).every(s => s.key === "green" || s.key === "orange")) allOk++;
+    for (const s of sm.st) { if (s.key === "orange") soon++; if (s.key === "red" && (s.req || s.t)) expired++; if (s.key === "gray") missing++; }
+  }
+  const stat = (f, n, t, c) => `<button class="stat ${c} ${S.f.status === f ? "on" : ""}" data-f="${f}"><div class="n">${n}</div><div class="t">${t}</div></button>`;
+  $("#stats").innerHTML =
+    stat("all", act.length, "עובדים פעילים", "") +
+    stat("ok", allOk, "כל ההדרכות בתוקף", "c-green") +
+    stat("d14", soon, "הדרכות שפגות תוך 14 יום", "c-orange") +
+    stat("red", expired, "הדרכות שפג תוקפן", "c-red") +
+    stat("gray", missing, "הדרכות חסרות נתונים", "c-gray");
+  $$("#stats .stat").forEach(b => b.onclick = () => { S.f.status = b.dataset.f; renderDash(); });
+
+  $("#chips").innerHTML = FILTERS.map(([k, l]) => `<button class="chip ${S.f.status === k ? "on" : ""}" data-f="${k}">${l}</button>`).join("");
+  $$("#chips .chip").forEach(b => b.onclick = () => { S.f.status = b.dataset.f; renderDash(); });
+
+  // רשימה
+  const q = S.f.q.trim().toLowerCase();
+  let rows = S.employees.filter(e => S.f.status === "inactive" ? !e.active : e.active).map(e => ({ e, sm: empSummary(e, shownTypes) }));
+  if (q) rows = rows.filter(({ e }) => e.full_name.toLowerCase().includes(q) || String(e.emp_number).toLowerCase().includes(q) || (e.phone || "").includes(q));
+  const has = (sm, fn) => sm.st.some(fn);
+  const F = {
+    all: () => true, inactive: () => true,
+    red: ({ sm }) => has(sm, s => s.key === "red"),
+    d14: ({ sm }) => has(sm, s => s.key === "orange"),
+    d30: ({ sm }) => has(sm, s => s.t && s.days > 0 && s.days <= 30),
+    gray: ({ sm }) => has(sm, s => s.key === "gray"),
+    ok: ({ sm }) => sm.st.filter(s => s.req).every(s => s.key === "green" || s.key === "orange"),
+  };
+  rows = rows.filter(F[S.f.status] || F.all);
+  const sorters = {
+    expiry: (a, b) => (a.sm.nearest ?? "9999") < (b.sm.nearest ?? "9999") ? -1 : (a.sm.nearest ?? "9999") > (b.sm.nearest ?? "9999") ? 1 : a.e.full_name.localeCompare(b.e.full_name, "he"),
+    name: (a, b) => a.e.full_name.localeCompare(b.e.full_name, "he"),
+    num: (a, b) => String(a.e.emp_number).localeCompare(String(b.e.emp_number), "he", { numeric: true }),
+  };
+  rows.sort(sorters[S.f.sort]);
+  $("#countLine").textContent = `${rows.length} עובדים מוצגים`;
+  if (!S.employees.length) {
+    $("#list").innerHTML = `<div class="empty card"><p style="font-size:18px;font-weight:700;margin-top:0">עדיין אין עובדים במערכת</p>
+      <p>אפשר להוסיף עובד בכפתור "עובד חדש", או לייבא את כל העובדים מקובץ Excel.</p>
+      <button class="btn primary" onclick="document.querySelector('[data-v=io]').click()">ייבוא מ-Excel</button></div>`;
+    return;
+  }
+  $("#list").innerHTML = rows.length ? rows.map(({ e, sm }) => `
+    <div class="emp b-${sm.worst} ${e.active ? "" : "inactive"}" data-id="${e.id}">
+      <div><div class="nm">${esc(e.full_name)}</div>
+        <div class="meta">מס' ${esc(e.emp_number)} · ${e.job_role === "operator" ? "מפעיל משאבה" : "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
+      <div class="trs">${sm.st.map(s => `<div class="tr">${esc(s.type.name)}
+        <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
+    </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
+  $$("#list .emp").forEach(el => el.onclick = () => openEmployee(el.dataset.id));
+}
+$("#q").oninput = (e) => { S.f.q = e.target.value; renderDash(); };
+$("#fType").onchange = (e) => { S.f.type = e.target.value; renderDash(); };
+$("#fSort").onchange = (e) => { S.f.sort = e.target.value; renderDash(); };
+$("#addBtn").onclick = () => editEmployee(null);
+
+/* ================= EMPLOYEE CARD ================= */
+function openEmployee(id) {
+  const e = S.employees.find(x => x.id === id); if (!e) return;
+  const sm = empSummary(e);
+  const body = `
+    <div class="tcard">
+      <div class="kv">
+        <span>מספר עובד</span><b>${esc(e.emp_number)}</b>
+        <span>טלפון</span><span>${e.phone ? `<a href="tel:${esc(e.phone)}" dir="ltr">${esc(e.phone)}</a>` : "—"}</span>
+        <span>תפקיד</span><span>${e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר"}</span>
+        <span>סטטוס</span><span>${e.active ? "פעיל" : "<b style='color:var(--red)'>לא פעיל</b>"}</span>
+        ${e.notes ? `<span>הערות</span><span style="white-space:pre-wrap">${esc(e.notes)}</span>` : ""}
+      </div>
+      <button class="btn ghost small" id="edEmp">✎ עריכת פרטים</button>
+    </div>
+    ${sm.st.map(s => `
+    <div class="tcard">
+      <div class="hd"><b>${esc(s.type.name)}</b><span class="pill s-${s.key}">${s.label}</span></div>
+      ${s.t ? `<div class="kv">
+          <span>תאריך הדרכה</span><span>${fmt(s.t.training_date)}</span>
+          <span>בתוקף עד</span><b>${fmt(s.t.expiry_date)}${s.t.expiry_manual ? ' <small class="muted">(הוזן ידנית)</small>' : ""}</b>
+          ${s.t.notes ? `<span>הערות</span><span>${esc(s.t.notes)}</span>` : ""}
+          <span>תעודה</span><span>${s.t.certificate_path ? `<a href="#" data-cert="${esc(s.t.certificate_path)}">📄 צפייה בתעודה</a>` : "לא הועלתה"}</span>
+        </div>` : `<p class="muted" style="margin:0 0 10px">${s.req ? "לא הוזנו פרטי הדרכה" : "לא נדרשת לעובד זה"}</p>`}
+      <div class="row">
+        <button class="btn primary grow" data-renew="${esc(s.type.code)}">${s.t ? "↻ חידוש הדרכה" : "＋ הזנת הדרכה"}</button>
+        <button class="btn ghost small" data-hist="${esc(s.type.code)}">היסטוריה</button>
+      </div>
+      <div class="hist hidden" id="hist-${esc(s.type.code)}"></div>
+    </div>`).join("")}
+    ${isAdmin() ? `<button class="btn danger block" id="delEmp" style="margin-top:8px">מחיקת עובד לצמיתות</button>` : ""}`;
+  openSheet(esc(e.full_name), body);
+  $("#edEmp").onclick = () => editEmployee(e);
+  $$("[data-renew]").forEach(b => b.onclick = () => renewForm(e, b.dataset.renew));
+  $$("[data-hist]").forEach(b => b.onclick = () => toggleHistory(e, b.dataset.hist));
+  bindCertLinks($("#sheet"));
+  if ($("#delEmp")) $("#delEmp").onclick = async () => {
+    if (!confirm(`למחוק את ${e.full_name} וכל היסטוריית ההדרכות שלו?\nמומלץ במקום זה לסמן "לא פעיל".`)) return;
+    const { error } = await sb.from("employees").delete().eq("id", e.id);
+    if (error) return fail(error);
+    closeSheet(); toast("העובד נמחק"); loadAll();
+  };
+}
+function bindCertLinks(root) {
+  $$("[data-cert]", root).forEach(a => a.onclick = async (ev) => {
+    ev.preventDefault();
+    const w = window.open("", "_blank");
+    const { data, error } = await sb.storage.from("certificates").createSignedUrl(a.dataset.cert, 600);
+    if (error) { w && w.close(); return fail(error); }
+    if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+  });
+}
+async function toggleHistory(e, code) {
+  const box = $("#hist-" + code);
+  if (!box.classList.contains("hidden")) return box.classList.add("hidden");
+  box.classList.remove("hidden"); box.innerHTML = `<span class="spinner"></span>`;
+  const { data, error } = await sb.from("trainings").select("*").eq("employee_id", e.id).eq("type_code", code).order("created_at", { ascending: false });
+  if (error) return fail(error);
+  box.innerHTML = data.length ? data.map(t => `<div><span>${t.is_current ? "<b>נוכחית</b> · " : ""}הדרכה ${fmt(t.training_date)}</span>
+      <span>עד ${fmt(t.expiry_date)}${t.certificate_path ? ` · <a href="#" data-cert="${esc(t.certificate_path)}">תעודה</a>` : ""}</span></div>`).join("")
+    : `<span class="muted">אין רשומות</span>`;
+  bindCertLinks(box);
+}
+
+/* ---------- add / edit employee ---------- */
+function editEmployee(e) {
+  const isNew = !e;
+  const types = activeTypes();
+  const body = `
+    <form id="empForm">
+      <label class="f">שם מלא *</label><input class="i" name="full_name" required value="${esc(e?.full_name)}">
+      <label class="f">מספר עובד *</label><input class="i" name="emp_number" required value="${esc(e?.emp_number)}" inputmode="numeric">
+      <label class="f">טלפון</label><input class="i" name="phone" type="tel" dir="ltr" style="text-align:right" value="${esc(e?.phone)}">
+      <label class="f">תפקיד</label>
+      <select class="i" name="job_role"><option value="operator" ${e?.job_role === "operator" ? "selected" : ""}>מפעיל משאבה</option><option value="other" ${e && e.job_role !== "operator" ? "selected" : ""}>עובד אחר</option></select>
+      <label class="f">סטטוס העסקה</label>
+      <select class="i" name="active"><option value="1">פעיל</option><option value="0" ${e && !e.active ? "selected" : ""}>לא פעיל</option></select>
+      <label class="f">הערות</label><textarea class="i" name="notes">${esc(e?.notes)}</textarea>
+      ${isNew ? types.map(t => `<label class="f">תאריך ${esc(t.name)} (אם ידוע)</label><input class="i" type="date" name="tr_${esc(t.code)}" max="${todayISO()}">`).join("") : ""}
+      <button class="btn primary block" style="margin-top:18px" id="empSave">${isNew ? "שמירת עובד" : "שמירת שינויים"}</button>
+    </form>`;
+  openSheet(isNew ? "עובד חדש" : "עריכת פרטים", body, isNew ? null : () => openEmployee(e.id));
+  $("#empForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    const rec = {
+      full_name: fd.get("full_name").trim(), emp_number: fd.get("emp_number").trim(),
+      phone: fd.get("phone").trim() || null, job_role: fd.get("job_role"),
+      active: fd.get("active") === "1", notes: fd.get("notes").trim() || null,
+    };
+    await busy($("#empSave"), async () => {
+      const q = isNew ? sb.from("employees").insert(rec).select().single() : sb.from("employees").update(rec).eq("id", e.id).select().single();
+      const { data, error } = await q;
+      if (error) return fail(error.code === "23505" ? "מספר עובד זה כבר קיים במערכת" : error);
+      if (isNew) for (const t of types) {
+        const d = fd.get("tr_" + t.code);
+        if (d) { const r = await sb.rpc("renew_training", { p_employee: data.id, p_type: t.code, p_training_date: d }); if (r.error) fail(r.error); }
+      }
+      toast(isNew ? "העובד נוסף" : "נשמר");
+      await loadAll(); openEmployee(data.id);
+    });
+  };
+}
+
+/* ---------- renew training (the main daily action) ---------- */
+function renewForm(e, code) {
+  const type = S.types.find(t => t.code === code);
+  const cur = S.trainings.find(x => x.employee_id === e.id && x.type_code === code);
+  const body = `
+    <form id="rnForm">
+      <p class="muted" style="margin-top:0">${esc(e.full_name)} · ${esc(type.name)} · תוקף ${type.validity_months % 12 === 0 ? (type.validity_months / 12 === 1 ? "שנה" : type.validity_months / 12 === 2 ? "שנתיים" : type.validity_months / 12 + " שנים") : type.validity_months + " חודשים"}</p>
+      <label class="f">תאריך ההדרכה החדשה</label>
+      <input class="i" type="date" name="d" id="rnDate" value="${todayISO()}" max="${todayISO()}" required>
+      <div class="calc" id="rnCalc"></div>
+      <label class="check"><input type="checkbox" id="rnManual"> תאריך התפוגה שונה מהחישוב</label>
+      <div id="rnManualBox" class="hidden"><label class="f">תאריך תפוגה</label><input class="i" type="date" name="exp" id="rnExp"></div>
+      <label class="f">תעודה / אישור (PDF או צילום – לא חובה)</label>
+      <input class="i" type="file" name="file" accept="application/pdf,image/*">
+      <label class="f">הערות</label><input class="i" name="notes" placeholder="למשל: שם המדריך / הגוף המכשיר">
+      ${cur ? `<p class="muted" style="font-size:13px">ההדרכה הקודמת (עד ${fmt(cur.expiry_date)}) תישמר בהיסטוריה.</p>` : ""}
+      <button class="btn green block" style="margin-top:16px" id="rnSave">✔ שמירת הדרכה</button>
+    </form>`;
+  openSheet(cur ? "חידוש הדרכה" : "הזנת הדרכה", body, () => openEmployee(e.id));
+  const calc = () => {
+    const d = $("#rnDate").value;
+    const exp = $("#rnManual").checked && $("#rnExp").value ? $("#rnExp").value : d ? addMonths(d, type.validity_months) : null;
+    const box = $("#rnCalc");
+    if (!exp) { box.textContent = ""; return; }
+    const left = daysBetween(todayISO(), exp);
+    box.className = "calc " + (left <= 0 ? "s-red" : left <= type.alert_days ? "s-orange" : "s-green");
+    box.textContent = `בתוקף עד ${fmt(exp)} · ${daysText(left)}`;
+  };
+  $("#rnDate").oninput = calc; $("#rnExp").oninput = calc;
+  $("#rnManual").onchange = (ev) => {
+    $("#rnManualBox").classList.toggle("hidden", !ev.target.checked);
+    if (ev.target.checked && !$("#rnExp").value && $("#rnDate").value) $("#rnExp").value = addMonths($("#rnDate").value, type.validity_months);
+    calc();
+  };
+  calc();
+  $("#rnForm").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    const file = fd.get("file");
+    await busy($("#rnSave"), async () => {
+      const { data: row, error } = await sb.rpc("renew_training", {
+        p_employee: e.id, p_type: code, p_training_date: fd.get("d"),
+        p_expiry: $("#rnManual").checked && fd.get("exp") ? fd.get("exp") : null,
+        p_notes: fd.get("notes").trim() || null,
+      });
+      if (error) return fail(error);
+      if (file && file.size) {
+        const path = await uploadCert(e.id, row.id, file);
+        if (path) await sb.from("trainings").update({ certificate_path: path }).eq("id", row.id);
+      }
+      toast("ההדרכה נשמרה ✔");
+      await loadAll(); openEmployee(e.id);
+    });
+  };
+}
+async function uploadCert(empId, trId, file) {
+  if (file.size > 10 * 1024 * 1024) { fail("הקובץ גדול מ-10MB"); return null; }
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const path = `${empId}/${trId}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from("certificates").upload(path, file, { contentType: file.type || undefined });
+  if (error) { fail("ההדרכה נשמרה, אבל העלאת התעודה נכשלה: " + error.message); return null; }
+  return path;
+}
+
+/* ================= EXCEL ================= */
+const COLS = [
+  ["emp_number", "מספר עובד"], ["full_name", "שם מלא"], ["phone", "טלפון"],
+  ["job_role", "תפקיד (מפעיל משאבה / עובד אחר)"], ["active", "סטטוס (פעיל / לא פעיל)"],
+];
+function typeCols() {
+  return activeTypes().flatMap(t => [[`d_${t.code}`, `תאריך הדרכת ${t.name}`], [`x_${t.code}`, `תאריך תפוגת ${t.name} (לא חובה)`]]);
+}
+function stamp() { return todayISO().split("-").reverse().join("-"); }
+function saveBook(wb, name) { XLSX.writeFile(wb, name, { compression: true }); }
+function sheetFrom(rows, widths) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = widths.map(w => ({ wch: w }));
+  ws["!views"] = [{ RTL: true }];
+  return ws;
+}
+
+$("#tplBtn").onclick = () => {
+  const head = [...COLS, ...typeCols(), ["notes", "הערות"]].map(c => c[1]);
+  const ex = ["1001", "ישראל ישראלי", "050-1234567", "מפעיל משאבה", "פעיל", ...activeTypes().flatMap(() => ["15/03/2025", ""]), ""];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFrom([head, ex], head.map(h => Math.max(14, h.length + 2))), "עובדים");
+  wb.Workbook = { Views: [{ RTL: true }] };
+  saveBook(wb, "תבנית-ייבוא-עובדים.xlsx");
+};
+
+$("#exportBtn").onclick = () => busy($("#exportBtn"), async () => {
+  const { data: all, error } = await sb.from("trainings").select("*").order("created_at");
+  if (error) return fail(error);
+  const types = activeTypes();
+  const empById = Object.fromEntries(S.employees.map(e => [e.id, e]));
+  const typeName = Object.fromEntries(S.types.map(t => [t.code, t.name]));
+  const head = ["מספר עובד", "שם מלא", "טלפון", "תפקיד", "סטטוס העסקה",
+    ...types.flatMap(t => [`${t.name} – תאריך הדרכה`, `${t.name} – תפוגה`, `${t.name} – מצב`]), "הערות"];
+  const statusHe = { green: "בתוקף", orange: "פג בקרוב", red: "פג תוקף", gray: "חסר", na: "לא נדרש" };
+  const rows = S.employees.slice().sort((a, b) => String(a.emp_number).localeCompare(String(b.emp_number), "he", { numeric: true })).map(e => [
+    e.emp_number, e.full_name, e.phone || "", e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר", e.active ? "פעיל" : "לא פעיל",
+    ...types.flatMap(t => { const s = trStatus(e, t); return [s.t ? fmt(s.t.training_date) : "", s.t ? fmt(s.t.expiry_date) : "", s.key === "orange" ? daysText(s.days) : statusHe[s.key]]; }),
+    e.notes || ""]);
+  const hist = [["מספר עובד", "שם", "הדרכה", "תאריך הדרכה", "תפוגה", "נוכחית", "תוקף הוזן ידנית", "תעודה", "הערות", "נרשם בתאריך"],
+    ...all.map(t => { const e = empById[t.employee_id] || {}; return [e.emp_number, e.full_name, typeName[t.type_code], fmt(t.training_date), fmt(t.expiry_date), t.is_current ? "כן" : "", t.expiry_manual ? "כן" : "", t.certificate_path ? "יש" : "", t.notes || "", fmt(t.created_at.slice(0, 10))]; })];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFrom([head, ...rows], head.map(h => Math.max(12, Math.min(28, h.length + 2)))), "עובדים והדרכות");
+  XLSX.utils.book_append_sheet(wb, sheetFrom(hist, [10, 18, 18, 12, 12, 8, 10, 8, 20, 12]), "היסטוריית הדרכות");
+  wb.Workbook = { Views: [{ RTL: true }] };
+  saveBook(wb, `דוח-הדרכות-${stamp()}.xlsx`);
+  toast("הדוח ירד למכשיר");
+});
+
+/* ---------- import ---------- */
+function parseDate(v) {
+  if (v === null || v === undefined || v === "") return { v: null };
+  if (v instanceof Date && !isNaN(v)) {
+    const d = new Date(v.getTime() + 12 * 3600e3);
+    return { v: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` };
+  }
+  if (typeof v === "number") { // מספר סידורי של Excel
+    const p = XLSX.SSF.parse_date_code(v);
+    if (p) return { v: `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}` };
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return ok(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return ok(y, +m[2], +m[1]); }
+  return { err: `תאריך לא תקין: "${s}"` };
+  function ok(y, mo, d) {
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    if (dt.getUTCMonth() !== mo - 1 || y < 1990 || y > 2100) return { err: `תאריך לא תקין: "${s}"` };
+    return { v: `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+  }
+}
+function mapHeader(h) {
+  const s = String(h || "").replace(/["'״׳]/g, "").trim();
+  for (const t of activeTypes()) {
+    const words = t.name.split(/\s+/).filter(w => w.length > 2);
+    const hit = s.includes(t.name) || (t.code === "height" && s.includes("גובה")) || (t.code === "operator" && s.includes("מפעיל") && s.includes("הדרכ")) || words.every(w => s.includes(w));
+    if (hit) return (s.includes("תפוגה") || s.includes("תוקף")) ? `x_${t.code}` : `d_${t.code}`;
+  }
+  if (/מספר|מס עובד|מס\.? עובד|^מס$/.test(s)) return "emp_number";
+  if (s.includes("שם")) return "full_name";
+  if (/טלפון|נייד|פלאפון/.test(s)) return "phone";
+  if (s.includes("תפקיד")) return "job_role";
+  if (/סטטוס|העסקה|פעיל/.test(s)) return "active";
+  if (s.includes("הער")) return "notes";
+  return null;
+}
+let IMPORT = [];
+$("#impFile").onchange = async (ev) => {
+  const file = ev.target.files[0]; ev.target.value = "";
+  if (!file) return;
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+    const hi = rows.findIndex(r => r.some(c => mapHeader(c) === "emp_number") && r.some(c => mapHeader(c) === "full_name"));
+    if (hi < 0) return fail("לא נמצאה שורת כותרות עם 'מספר עובד' ו'שם'. מומלץ להשתמש בתבנית.");
+    const map = rows[hi].map(mapHeader);
+    const existing = Object.fromEntries(S.employees.map(e => [String(e.emp_number), e]));
+    const seen = {};
+    IMPORT = [];
+    rows.slice(hi + 1).forEach((r, i) => {
+      if (r.every(c => String(c).trim() === "")) return;
+      const o = { line: hi + i + 2, errs: [], tr: {} };
+      map.forEach((k, ci) => { if (k) o[k] = r[ci]; });
+      o.emp_number = String(o.emp_number ?? "").trim().replace(/\.0$/, "");
+      o.full_name = String(o.full_name ?? "").trim();
+      o.phone = String(o.phone ?? "").trim() || null;
+      o.job_role = /מפעיל/.test(String(o.job_role ?? "")) ? "operator" : "other";
+      o.active = !/לא/.test(String(o.active ?? ""));
+      o.notes = String(o.notes ?? "").trim() || null;
+      if (!o.emp_number) o.errs.push("חסר מספר עובד");
+      if (!o.full_name) o.errs.push("חסר שם");
+      if (o.emp_number && seen[o.emp_number]) o.errs.push(`מספר עובד כפול בקובץ (גם בשורה ${seen[o.emp_number]})`);
+      seen[o.emp_number] = o.line;
+      for (const t of activeTypes()) {
+        const d = parseDate(o["d_" + t.code]), x = parseDate(o["x_" + t.code]);
+        if (d.err) o.errs.push(d.err); if (x.err) o.errs.push(x.err);
+        if (d.v || x.v) o.tr[t.code] = { d: d.v, x: x.v || null, exp: x.v || addMonths(d.v, t.validity_months) };
+      }
+      const ex = existing[o.emp_number];
+      o.existing = ex || null;
+      o.action = o.errs.length ? "error" : ex ? "update" : "new";
+      IMPORT.push(o);
+    });
+    renderImportPreview(file.name);
+  } catch (e) { fail("לא ניתן לקרוא את הקובץ: " + e.message); }
+};
+function renderImportPreview(name) {
+  const n = (a) => IMPORT.filter(o => o.action === a).length;
+  const types = activeTypes();
+  const tag = { new: '<span class="pill s-green">חדש</span>', update: '<span class="pill s-orange">קיים – יעודכן</span>', error: '<span class="pill s-red">שגיאה</span>' };
+  $("#impPreview").innerHTML = `
+    <h2 class="sec">תצוגה מקדימה – ${esc(name)}</h2>
+    <div class="row" style="margin-bottom:10px">
+      <span class="pill s-green">${n("new")} עובדים חדשים</span>
+      <span class="pill s-orange">${n("update")} קיימים (לפי מספר עובד)</span>
+      ${n("error") ? `<span class="pill s-red">${n("error")} שורות עם שגיאה – לא ייובאו</span>` : ""}
+    </div>
+    <div class="scroll"><table class="tbl">
+      <tr><th>שורה</th><th>מצב</th><th>מס' עובד</th><th>שם</th><th>תפקיד</th>${types.map(t => `<th>${esc(t.name)}</th>`).join("")}</tr>
+      ${IMPORT.map(o => `<tr><td>${o.line}</td><td>${tag[o.action]}${o.errs.length ? `<div style="color:var(--red);font-size:12px">${o.errs.map(esc).join("<br>")}</div>` : ""}</td>
+        <td>${esc(o.emp_number)}</td><td>${esc(o.full_name)}</td><td>${o.job_role === "operator" ? "מפעיל" : "אחר"}</td>
+        ${types.map(t => { const x = o.tr[t.code]; if (!x) return "<td class='muted'>—</td>";
+          const d = daysBetween(todayISO(), x.exp); const k = d <= 0 ? "red" : d <= t.alert_days ? "orange" : "green";
+          return `<td>${fmt(x.d)}<br><span class="pill s-${k}">עד ${fmt(x.exp)}</span></td>`; }).join("")}</tr>`).join("")}
+    </table></div>
+    <label class="check"><input type="checkbox" id="impUpd" checked> לעדכן גם את הפרטים של עובדים קיימים</label>
+    <div class="row" style="margin-top:14px">
+      <button class="btn green grow" id="impGo" ${n("new") + n("update") ? "" : "disabled"}>✔ אישור וייבוא ${n("new") + n("update")} עובדים</button>
+      <button class="btn ghost" id="impCancel">ביטול</button>
+    </div>
+    <div id="impProg" class="muted" style="margin-top:10px"></div>`;
+  $("#impCancel").onclick = () => ($("#impPreview").innerHTML = "");
+  $("#impGo").onclick = () => busy($("#impGo"), runImport);
+}
+async function runImport() {
+  const good = IMPORT.filter(o => o.action !== "error");
+  const updExisting = $("#impUpd").checked;
+  const prog = $("#impProg");
+  // 1. עובדים
+  const recs = good.filter(o => o.action === "new" || updExisting).map(o => ({
+    emp_number: o.emp_number, full_name: o.full_name, phone: o.phone, job_role: o.job_role, active: o.active,
+    ...(o.notes ? { notes: o.notes } : {}),
+  }));
+  prog.textContent = "שומר עובדים…";
+  for (let i = 0; i < recs.length; i += 200) {
+    const { error } = await sb.from("employees").upsert(recs.slice(i, i + 200), { onConflict: "emp_number" });
+    if (error) return fail(error);
+  }
+  await loadAll();
+  const byNum = Object.fromEntries(S.employees.map(e => [String(e.emp_number), e]));
+  // 2. הדרכות – רק אם שונות ממה שכבר רשום
+  const jobs = [];
+  for (const o of good) for (const [code, x] of Object.entries(o.tr)) {
+    const e = byNum[o.emp_number]; if (!e) continue;
+    const cur = S.trainings.find(t => t.employee_id === e.id && t.type_code === code);
+    if (cur && cur.training_date === x.d && cur.expiry_date === x.exp) continue;
+    jobs.push({ p_employee: e.id, p_type: code, p_training_date: x.d, p_expiry: x.x });
+  }
+  let done = 0, errs = 0;
+  for (const j of jobs) {
+    const { error } = await sb.rpc("renew_training", j);
+    if (error) { errs++; console.error(error); }
+    prog.textContent = `שומר הדרכות… ${++done}/${jobs.length}`;
+  }
+  await loadAll();
+  $("#impPreview").innerHTML = `<div class="calc s-green" style="margin-top:14px">הייבוא הושלם: ${recs.length} עובדים, ${jobs.length - errs} הדרכות${errs ? ` · ${errs} שגיאות` : ""}.</div>`;
+  toast("הייבוא הושלם ✔");
+}
+
+/* ================= NOTIFICATIONS LOG ================= */
+async function renderLog() {
+  const emails = S.settings.alert_emails || "";
+  $("#logInfo").innerHTML = emails
+    ? `בכל יום ב-08:00 השרת בודק את כל ההדרכות ושולח אל <b dir="ltr">${esc(emails)}</b>: התראה 14 יום לפני, תזכורת 7 ימים לפני, התראה ביום הפקיעה, ודוח יומי מרוכז כשיש מה לטפל. זה עובד גם כשהאפליקציה סגורה.`
+    : `<b style="color:var(--red)">לא הוגדרה כתובת מייל להתראות.</b> ${isAdmin() ? "יש להגדיר במסך הגדרות." : "בקש מהמנהל להגדיר."}`;
+  $("#logAdmin").classList.toggle("hidden", !isAdmin());
+  $("#logList").innerHTML = `<span class="spinner"></span>`;
+  const { data, error } = await sb.from("notification_log").select("*").order("created_at", { ascending: false }).limit(150);
+  if (error) return fail(error);
+  const kindHe = { d14: "התראת 14 יום", d7: "תזכורת 7 ימים", d0: "יום הפקיעה", digest: "דוח יומי", test: "מייל בדיקה", run: "ריצה" };
+  const stHe = { sent: ["s-green", "נשלח"], failed: ["s-red", "נכשל"], skipped: ["s-gray", "דולג – פג לפני תחילת המעקב"] };
+  $("#logList").innerHTML = data.length ? `<div class="list">${data.map(r => `
+    <div class="card" style="padding:12px 14px">
+      <div class="row" style="justify-content:space-between"><b>${esc(kindHe[r.kind] || r.kind)}</b><span class="pill ${stHe[r.status][0]}">${stHe[r.status][1]}</span></div>
+      <div style="font-size:14px;margin-top:4px">${esc(r.subject || (r.details?.name ? `${r.details.name} – ${r.details.type}` : ""))}</div>
+      <div class="muted" style="font-size:12px;margin-top:4px">${new Date(r.created_at).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}${r.recipients ? ` · אל ${esc(r.recipients)}` : ""}</div>
+      ${r.error ? `<div style="color:var(--red);font-size:13px;margin-top:4px">${esc(r.error)}</div>` : ""}
+    </div>`).join("")}</div>` : `<div class="empty">עדיין לא נשלחו התראות</div>`;
+}
+async function callCheck(mode, btn) {
+  await busy(btn, async () => {
+    const { data, error } = await sb.functions.invoke("daily-check", { body: { mode } });
+    if (error) {
+      let msg = error.message;
+      try { const j = await error.context.json(); msg = j.error || msg; } catch {}
+      return fail("השירות לא הגיב: " + msg + " (בדוק שלב 4 במדריך)");
+    }
+    if (mode === "test") data.ok ? toast("מייל בדיקה נשלח ✔ בדוק את תיבת הדואר") : fail(data.error);
+    else toast(`הבדיקה רצה: ${data.sent_alerts} התראות נשלחו, דוח יומי: ${data.digest === "sent" ? "נשלח" : data.digest === "none" ? "אין צורך" : data.digest}`, data.failed > 0);
+    renderLog();
+  });
+}
+$("#testMailBtn").onclick = (e) => callCheck("test", e.currentTarget);
+$("#runNowBtn").onclick = (e) => callCheck("run", e.currentTarget);
+
+/* ================= SETTINGS ================= */
+async function renderSettings() {
+  const v = $("#v-set");
+  const me = `<div class="card"><h2 class="sec" style="margin-top:0">החשבון שלי</h2>
+    <label class="f">שם לתצוגה</label><input class="i" id="myName" value="${esc(S.profile.full_name)}">
+    <div class="row" style="margin-top:12px"><button class="btn ghost small" id="saveMyName">שמירה</button><button class="btn ghost small" id="chPass">שינוי סיסמה</button></div></div>`;
+  if (!isAdmin()) { v.innerHTML = me; bindMe(); return; }
+  const types = S.types;
+  v.innerHTML = `
+    <div class="card">
+      <h2 class="sec" style="margin-top:0">כתובות לקבלת התראות</h2>
+      <p class="muted" style="margin-top:0">אפשר כמה כתובות, מופרדות בפסיק.</p>
+      <input class="i" id="setEmails" dir="ltr" value="${esc(S.settings.alert_emails)}" placeholder="name@example.com">
+      <label class="f">שם החברה</label><input class="i" id="setCompany" value="${esc(S.settings.company_name)}">
+      <button class="btn primary" style="margin-top:14px" id="saveSettings">שמירה</button>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2 class="sec" style="margin-top:0">משתמשים</h2>
+      <p class="muted" style="margin-top:0">משתמש חדש נרשם במסך הכניסה ("משתמש חדש? הרשמה") ומופיע כאן לאישור.</p>
+      <div id="usersBox"><span class="spinner"></span></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2 class="sec" style="margin-top:0">סוגי הדרכות</h2>
+      <div class="scroll" style="max-height:none"><table class="tbl">
+        <tr><th>שם</th><th>תוקף (חודשים)</th><th>התראה (ימים לפני)</th><th>נדרש עבור</th><th>פעיל</th></tr>
+        ${types.map(t => `<tr data-code="${esc(t.code)}">
+          <td><input class="i" style="min-width:140px" data-k="name" value="${esc(t.name)}"></td>
+          <td><input class="i" type="number" min="1" style="width:90px" data-k="validity_months" value="${t.validity_months}"></td>
+          <td><input class="i" type="number" min="1" style="width:90px" data-k="alert_days" value="${t.alert_days}"></td>
+          <td><select class="i" data-k="required_for">${[["all", "כל העובדים"], ["operator", "מפעילי משאבה"], ["none", "לא חובה"]].map(([k, l]) => `<option value="${k}" ${t.required_for === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><input type="checkbox" style="width:22px;height:22px" data-k="active" ${t.active ? "checked" : ""}></td></tr>`).join("")}
+      </table></div>
+      <p class="muted" style="font-size:13px">שינוי תקופת התוקף משפיע על הדרכות שיוזנו מעכשיו. הדרכות קיימות לא משתנות.</p>
+      <div class="row"><button class="btn primary small" id="saveTypes">שמירת שינויים</button><button class="btn ghost small" id="addType">＋ סוג הדרכה חדש</button></div>
+    </div>
+    ${me}`;
+  bindMe();
+  $("#saveSettings").onclick = (e) => busy(e.currentTarget, async () => {
+    const rows = [{ key: "alert_emails", value: $("#setEmails").value.trim() }, { key: "company_name", value: $("#setCompany").value.trim() }];
+    const { error } = await sb.from("settings").upsert(rows);
+    if (error) return fail(error);
+    await loadAll(); toast("נשמר ✔");
+  });
+  $("#saveTypes").onclick = (e) => busy(e.currentTarget, async () => {
+    for (const tr of $$("tr[data-code]", v)) {
+      const upd = {};
+      $$("[data-k]", tr).forEach(i => upd[i.dataset.k] = i.type === "checkbox" ? i.checked : i.type === "number" ? +i.value : i.value.trim());
+      const { error } = await sb.from("training_types").update(upd).eq("code", tr.dataset.code);
+      if (error) return fail(error);
+    }
+    await loadAll(); toast("נשמר ✔"); renderSettings();
+  });
+  $("#addType").onclick = async () => {
+    const name = prompt("שם ההדרכה החדשה:"); if (!name) return;
+    const months = +prompt("תוקף בחודשים (למשל 12 לשנה, 24 לשנתיים):", "12"); if (!months) return;
+    const { error } = await sb.from("training_types").insert({ code: "t" + Date.now().toString(36), name: name.trim(), validity_months: months, alert_days: 14, required_for: "all", sort_order: 10 + S.types.length });
+    if (error) return fail(error);
+    await loadAll(); renderSettings(); toast("נוסף ✔");
+  };
+  const { data: users, error } = await sb.from("profiles").select("*").order("created_at");
+  if (error) return fail(error);
+  $("#usersBox").innerHTML = users.map(u => `
+    <div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)" data-uid="${u.id}">
+      <div class="grow"><b dir="ltr">${esc(u.email)}</b>${u.full_name ? ` <span class="muted">(${esc(u.full_name)})</span>` : ""}
+        ${!u.active ? `<span class="pill s-orange">ממתין לאישור / חסום</span>` : ""}</div>
+      ${u.id === S.user.id ? `<span class="muted">זה אתה</span>` : `
+        <select class="i" style="width:auto" data-role><option value="editor" ${u.role === "editor" ? "selected" : ""}>עובד מורשה</option><option value="admin" ${u.role === "admin" ? "selected" : ""}>מנהל</option></select>
+        <button class="btn small ${u.active ? "danger" : "green"}" data-act>${u.active ? "חסימה" : "אישור"}</button>`}
+    </div>`).join("");
+  $$("#usersBox [data-uid]").forEach(row => {
+    const uid = row.dataset.uid, u = users.find(x => x.id === uid);
+    const sel = $("[data-role]", row), btn = $("[data-act]", row);
+    if (sel) sel.onchange = async () => { const { error } = await sb.from("profiles").update({ role: sel.value }).eq("id", uid); error ? fail(error) : toast("עודכן"); };
+    if (btn) btn.onclick = async () => { const { error } = await sb.from("profiles").update({ active: !u.active }).eq("id", uid); error ? fail(error) : (toast(u.active ? "נחסם" : "אושר ✔"), renderSettings()); };
+  });
+}
+function bindMe() {
+  $("#saveMyName").onclick = async () => {
+    const { error } = await sb.rpc("set_my_name", { p_name: $("#myName").value });
+    if (error) return fail(error);
+    S.profile.full_name = $("#myName").value.trim(); $("#hdrUser").textContent = (S.profile.full_name || S.user.email) + (isAdmin() ? " · מנהל" : ""); toast("נשמר");
+  };
+  $("#chPass").onclick = newPasswordPrompt;
+}
+
+/* ---------------- start ---------------- */
+sb.auth.getSession().then(({ data }) => {
+  if (!data.session) $("#login").classList.remove("hidden");
+});
+})();
+</script>
+</body>
+</html>
