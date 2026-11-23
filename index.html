@@ -522,7 +522,9 @@ function openEmployee(id) {
           <span>בתוקף עד</span><b>${fmt(s.t.expiry_date)}${s.t.expiry_manual ? ' <small class="muted">(הוזן ידנית)</small>' : ""}</b>
           ${s.t.notes ? `<span>הערות</span><span>${esc(s.t.notes)}</span>` : ""}
           <span>תעודה</span><span>${s.t.certificate_path ? `<a href="#" data-cert="${esc(s.t.certificate_path)}">📄 צפייה בתעודה</a>` : "לא הועלתה"}</span>
-        </div>` : `<p class="muted" style="margin:0 0 10px">${s.req ? "לא הוזנו פרטי הדרכה" : "לא נדרשת לעובד זה"}</p>`}
+        </div>
+        <label class="btn ghost block" style="margin-bottom:10px">📎 ${s.t.certificate_path ? "החלפת תעודה" : "צירוף תעודה (צילום / PDF)"}
+          <input type="file" class="hidden" accept="application/pdf,image/*" data-attach="${esc(s.t.id)}"></label>` : `<p class="muted" style="margin:0 0 10px">${s.req ? "לא הוזנו פרטי הדרכה" : "לא נדרשת לעובד זה"}</p>`}
       <div class="row">
         <button class="btn primary grow" data-renew="${esc(s.type.code)}">${s.t ? "↻ חידוש הדרכה" : "＋ הזנת הדרכה"}</button>
         <button class="btn ghost small" data-hist="${esc(s.type.code)}">היסטוריה</button>
@@ -534,6 +536,21 @@ function openEmployee(id) {
   $("#edEmp").onclick = () => editEmployee(e);
   $$("[data-renew]").forEach(b => b.onclick = () => renewForm(e, b.dataset.renew));
   $$("[data-hist]").forEach(b => b.onclick = () => toggleHistory(e, b.dataset.hist));
+  // צירוף / החלפת תעודה להדרכה קיימת – בלי ליצור רשומת הדרכה חדשה
+  $$("[data-attach]").forEach(inp => inp.onchange = async () => {
+    const file = inp.files[0]; inp.value = "";
+    if (!file) return;
+    const lbl = inp.closest("label"); const txt = lbl.firstChild.textContent;
+    lbl.firstChild.textContent = "⏳ מעלה… ";
+    try {
+      const path = await uploadCert(e.id, inp.dataset.attach, file);
+      if (!path) return;
+      const { error } = await sb.from("trainings").update({ certificate_path: path }).eq("id", inp.dataset.attach);
+      if (error) return fail(error);
+      toast("התעודה נשמרה ✔");
+      await loadAll(); openEmployee(e.id);
+    } finally { if (lbl.isConnected) lbl.firstChild.textContent = txt; }
+  });
   bindCertLinks($("#sheet"));
   if ($("#delEmp")) $("#delEmp").onclick = async () => {
     if (!confirm(`למחוק את ${e.full_name} וכל היסטוריית ההדרכות שלו?\nמומלץ במקום זה לסמן "לא פעיל".`)) return;
