@@ -461,7 +461,7 @@ function renderDash() {
   // רשימה
   const q = S.f.q.trim().toLowerCase();
   let rows = S.employees.filter(e => S.f.status === "inactive" ? !e.active : e.active).map(e => ({ e, sm: empSummary(e, shownTypes) }));
-  if (q) rows = rows.filter(({ e }) => e.full_name.toLowerCase().includes(q) || String(e.emp_number).toLowerCase().includes(q) || (e.phone || "").includes(q));
+  if (q) rows = rows.filter(({ e }) => e.full_name.toLowerCase().includes(q) || String(e.emp_number ?? "").toLowerCase().includes(q) || (e.phone || "").includes(q));
   const has = (sm, fn) => sm.st.some(fn);
   const F = {
     all: () => true, inactive: () => true,
@@ -475,7 +475,7 @@ function renderDash() {
   const sorters = {
     expiry: (a, b) => (a.sm.nearest ?? "9999") < (b.sm.nearest ?? "9999") ? -1 : (a.sm.nearest ?? "9999") > (b.sm.nearest ?? "9999") ? 1 : a.e.full_name.localeCompare(b.e.full_name, "he"),
     name: (a, b) => a.e.full_name.localeCompare(b.e.full_name, "he"),
-    num: (a, b) => String(a.e.emp_number).localeCompare(String(b.e.emp_number), "he", { numeric: true }),
+    num: (a, b) => (a.e.emp_number ? 0 : 1) - (b.e.emp_number ? 0 : 1) || String(a.e.emp_number ?? "").localeCompare(String(b.e.emp_number ?? ""), "he", { numeric: true }),
   };
   rows.sort(sorters[S.f.sort]);
   $("#countLine").textContent = `${rows.length} עובדים מוצגים`;
@@ -488,7 +488,7 @@ function renderDash() {
   $("#list").innerHTML = rows.length ? rows.map(({ e, sm }) => `
     <div class="emp b-${sm.worst} ${e.active ? "" : "inactive"}" data-id="${e.id}">
       <div><div class="nm">${esc(e.full_name)}</div>
-        <div class="meta">מס' ${esc(e.emp_number)} · ${e.job_role === "operator" ? "מפעיל משאבה" : "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
+        <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${e.job_role === "operator" ? "מפעיל משאבה" : "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
       <div class="trs">${sm.st.map(s => `<div class="tr">${esc(s.type.name)}
         <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
     </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
@@ -506,7 +506,7 @@ function openEmployee(id) {
   const body = `
     <div class="tcard">
       <div class="kv">
-        <span>מספר עובד</span><b>${esc(e.emp_number)}</b>
+        <span>מספר עובד</span><b>${esc(e.emp_number) || "—"}</b>
         <span>טלפון</span><span>${e.phone ? `<a href="tel:${esc(e.phone)}" dir="ltr">${esc(e.phone)}</a>` : "—"}</span>
         <span>תפקיד</span><span>${e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר"}</span>
         <span>סטטוס</span><span>${e.active ? "פעיל" : "<b style='color:var(--red)'>לא פעיל</b>"}</span>
@@ -570,7 +570,7 @@ function editEmployee(e) {
   const body = `
     <form id="empForm">
       <label class="f">שם מלא *</label><input class="i" name="full_name" required value="${esc(e?.full_name)}">
-      <label class="f">מספר עובד *</label><input class="i" name="emp_number" required value="${esc(e?.emp_number)}" inputmode="numeric">
+      <label class="f">מספר עובד (לא חובה)</label><input class="i" name="emp_number" value="${esc(e?.emp_number)}" inputmode="numeric">
       <label class="f">טלפון</label><input class="i" name="phone" type="tel" dir="ltr" style="text-align:right" value="${esc(e?.phone)}">
       <label class="f">תפקיד</label>
       <select class="i" name="job_role"><option value="operator" ${e?.job_role === "operator" ? "selected" : ""}>מפעיל משאבה</option><option value="other" ${e && e.job_role !== "operator" ? "selected" : ""}>עובד אחר</option></select>
@@ -585,7 +585,7 @@ function editEmployee(e) {
     ev.preventDefault();
     const fd = new FormData(ev.target);
     const rec = {
-      full_name: fd.get("full_name").trim(), emp_number: fd.get("emp_number").trim(),
+      full_name: fd.get("full_name").trim(), emp_number: fd.get("emp_number").trim() || null,
       phone: fd.get("phone").trim() || null, job_role: fd.get("job_role"),
       active: fd.get("active") === "1", notes: fd.get("notes").trim() || null,
     };
@@ -669,7 +669,7 @@ async function uploadCert(empId, trId, file) {
 
 /* ================= EXCEL ================= */
 const COLS = [
-  ["emp_number", "מספר עובד"], ["full_name", "שם מלא"], ["phone", "טלפון"],
+  ["emp_number", "מספר עובד (לא חובה)"], ["full_name", "שם מלא"], ["phone", "טלפון"],
   ["job_role", "תפקיד (מפעיל משאבה / עובד אחר)"], ["active", "סטטוס (פעיל / לא פעיל)"],
 ];
 function typeCols() {
@@ -702,12 +702,12 @@ $("#exportBtn").onclick = () => busy($("#exportBtn"), async () => {
   const head = ["מספר עובד", "שם מלא", "טלפון", "תפקיד", "סטטוס העסקה",
     ...types.flatMap(t => [`${t.name} – תאריך הדרכה`, `${t.name} – תפוגה`, `${t.name} – מצב`]), "הערות"];
   const statusHe = { green: "בתוקף", orange: "פג בקרוב", red: "פג תוקף", gray: "חסר", na: "לא נדרש" };
-  const rows = S.employees.slice().sort((a, b) => String(a.emp_number).localeCompare(String(b.emp_number), "he", { numeric: true })).map(e => [
-    e.emp_number, e.full_name, e.phone || "", e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר", e.active ? "פעיל" : "לא פעיל",
+  const rows = S.employees.slice().sort((a, b) => (a.emp_number ? 0 : 1) - (b.emp_number ? 0 : 1) || String(a.emp_number ?? "").localeCompare(String(b.emp_number ?? ""), "he", { numeric: true }) || a.full_name.localeCompare(b.full_name, "he")).map(e => [
+    e.emp_number ?? "", e.full_name, e.phone || "", e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר", e.active ? "פעיל" : "לא פעיל",
     ...types.flatMap(t => { const s = trStatus(e, t); return [s.t ? fmt(s.t.training_date) : "", s.t ? fmt(s.t.expiry_date) : "", s.key === "orange" ? daysText(s.days) : statusHe[s.key]]; }),
     e.notes || ""]);
   const hist = [["מספר עובד", "שם", "הדרכה", "תאריך הדרכה", "תפוגה", "נוכחית", "תוקף הוזן ידנית", "תעודה", "הערות", "נרשם בתאריך"],
-    ...all.map(t => { const e = empById[t.employee_id] || {}; return [e.emp_number, e.full_name, typeName[t.type_code], fmt(t.training_date), fmt(t.expiry_date), t.is_current ? "כן" : "", t.expiry_manual ? "כן" : "", t.certificate_path ? "יש" : "", t.notes || "", fmt(t.created_at.slice(0, 10))]; })];
+    ...all.map(t => { const e = empById[t.employee_id] || {}; return [e.emp_number ?? "", e.full_name, typeName[t.type_code], fmt(t.training_date), fmt(t.expiry_date), t.is_current ? "כן" : "", t.expiry_manual ? "כן" : "", t.certificate_path ? "יש" : "", t.notes || "", fmt(t.created_at.slice(0, 10))]; })];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, sheetFrom([head, ...rows], head.map(h => Math.max(12, Math.min(28, h.length + 2)))), "עובדים והדרכות");
   XLSX.utils.book_append_sheet(wb, sheetFrom(hist, [10, 18, 18, 12, 12, 8, 10, 8, 20, 12]), "היסטוריית הדרכות");
@@ -744,7 +744,7 @@ function mapHeader(h) {
   for (const t of activeTypes()) {
     const words = t.name.split(/\s+/).filter(w => w.length > 2);
     const hit = s.includes(t.name) || (t.code === "height" && s.includes("גובה")) || (t.code === "operator" && s.includes("מפעיל") && s.includes("הדרכ")) || words.every(w => s.includes(w));
-    if (hit) return (s.includes("תפוגה") || s.includes("תוקף")) ? `x_${t.code}` : `d_${t.code}`;
+    if (hit) return /תפוג|תוקף/.test(s) ? `x_${t.code}` : `d_${t.code}`;
   }
   if (/מספר|מס עובד|מס\.? עובד|^מס$/.test(s)) return "emp_number";
   if (s.includes("שם")) return "full_name";
@@ -754,6 +754,16 @@ function mapHeader(h) {
   if (s.includes("הער")) return "notes";
   return null;
 }
+// מציאת עובד קיים: לפי מספר עובד; אם אין מספר בקובץ – לפי שם מלא
+function makeMatcher() {
+  const norm = (t) => String(t ?? "").replace(/\s+/g, " ").trim();
+  const byNum = new Map(), byName = new Map();
+  for (const e of S.employees) {
+    if (e.emp_number) byNum.set(String(e.emp_number), e);
+    const k = norm(e.full_name); byName.set(k, byName.has(k) ? "ambiguous" : e);
+  }
+  return (o) => o.emp_number ? (byNum.get(o.emp_number) || null) : (byName.get(norm(o.full_name)) || null);
+}
 let IMPORT = [];
 $("#impFile").onchange = async (ev) => {
   const file = ev.target.files[0]; ev.target.value = "";
@@ -761,10 +771,10 @@ $("#impFile").onchange = async (ev) => {
   try {
     const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
-    const hi = rows.findIndex(r => r.some(c => mapHeader(c) === "emp_number") && r.some(c => mapHeader(c) === "full_name"));
-    if (hi < 0) return fail("לא נמצאה שורת כותרות עם 'מספר עובד' ו'שם'. מומלץ להשתמש בתבנית.");
+    const hi = rows.findIndex(r => r.some(c => mapHeader(c) === "full_name"));
+    if (hi < 0) return fail("לא נמצאה שורת כותרות עם עמודת 'שם'. מומלץ להשתמש בתבנית.");
     const map = rows[hi].map(mapHeader);
-    const existing = Object.fromEntries(S.employees.map(e => [String(e.emp_number), e]));
+    const findExisting = makeMatcher();
     const seen = {};
     IMPORT = [];
     rows.slice(hi + 1).forEach((r, i) => {
@@ -777,18 +787,19 @@ $("#impFile").onchange = async (ev) => {
       o.job_role = /מפעיל/.test(String(o.job_role ?? "")) ? "operator" : "other";
       o.active = !/לא/.test(String(o.active ?? ""));
       o.notes = String(o.notes ?? "").trim() || null;
-      if (!o.emp_number) o.errs.push("חסר מספר עובד");
       if (!o.full_name) o.errs.push("חסר שם");
-      if (o.emp_number && seen[o.emp_number]) o.errs.push(`מספר עובד כפול בקובץ (גם בשורה ${seen[o.emp_number]})`);
-      seen[o.emp_number] = o.line;
+      const key = o.emp_number ? "n:" + o.emp_number : "s:" + o.full_name;
+      if (o.full_name && seen[key]) o.errs.push(o.emp_number ? `מספר עובד כפול בקובץ (גם בשורה ${seen[key]})` : `שם כפול בקובץ בלי מספר עובד (גם בשורה ${seen[key]})`);
+      seen[key] = o.line;
       for (const t of activeTypes()) {
         const d = parseDate(o["d_" + t.code]), x = parseDate(o["x_" + t.code]);
         if (d.err) o.errs.push(d.err); if (x.err) o.errs.push(x.err);
         if (d.v || x.v) o.tr[t.code] = { d: d.v, x: x.v || null, exp: x.v || addMonths(d.v, t.validity_months) };
       }
-      const ex = existing[o.emp_number];
-      o.existing = ex || null;
-      o.action = o.errs.length ? "error" : ex ? "update" : "new";
+      const ex = o.full_name ? findExisting(o) : null;
+      if (ex === "ambiguous") o.errs.push("יש במערכת כמה עובדים בשם הזה – הוסף מספר עובד");
+      o.existing = ex && ex !== "ambiguous" ? ex : null;
+      o.action = o.errs.length ? "error" : o.existing ? "update" : "new";
       IMPORT.push(o);
     });
     renderImportPreview(file.name);
@@ -802,13 +813,13 @@ function renderImportPreview(name) {
     <h2 class="sec">תצוגה מקדימה – ${esc(name)}</h2>
     <div class="row" style="margin-bottom:10px">
       <span class="pill s-green">${n("new")} עובדים חדשים</span>
-      <span class="pill s-orange">${n("update")} קיימים (לפי מספר עובד)</span>
+      <span class="pill s-orange">${n("update")} קיימים (לפי מספר עובד, או לפי שם כשאין מספר)</span>
       ${n("error") ? `<span class="pill s-red">${n("error")} שורות עם שגיאה – לא ייובאו</span>` : ""}
     </div>
     <div class="scroll"><table class="tbl">
       <tr><th>שורה</th><th>מצב</th><th>מס' עובד</th><th>שם</th><th>תפקיד</th>${types.map(t => `<th>${esc(t.name)}</th>`).join("")}</tr>
       ${IMPORT.map(o => `<tr><td>${o.line}</td><td>${tag[o.action]}${o.errs.length ? `<div style="color:var(--red);font-size:12px">${o.errs.map(esc).join("<br>")}</div>` : ""}</td>
-        <td>${esc(o.emp_number)}</td><td>${esc(o.full_name)}</td><td>${o.job_role === "operator" ? "מפעיל" : "אחר"}</td>
+        <td>${esc(o.emp_number) || "—"}</td><td>${esc(o.full_name)}</td><td>${o.job_role === "operator" ? "מפעיל" : "אחר"}</td>
         ${types.map(t => { const x = o.tr[t.code]; if (!x) return "<td class='muted'>—</td>";
           const d = daysBetween(todayISO(), x.exp); const k = d <= 0 ? "red" : d <= t.alert_days ? "orange" : "green";
           return `<td>${fmt(x.d)}<br><span class="pill s-${k}">עד ${fmt(x.exp)}</span></td>`; }).join("")}</tr>`).join("")}
@@ -826,25 +837,31 @@ async function runImport() {
   const good = IMPORT.filter(o => o.action !== "error");
   const updExisting = $("#impUpd").checked;
   const prog = $("#impProg");
-  // 1. עובדים
-  const recs = good.filter(o => o.action === "new" || updExisting).map(o => ({
-    emp_number: o.emp_number, full_name: o.full_name, phone: o.phone, job_role: o.job_role, active: o.active,
-    ...(o.notes ? { notes: o.notes } : {}),
-  }));
+  // 1. עובדים – חדשים נוספים, קיימים מתעדכנים (לפי מספר עובד, או לפי שם כשאין מספר)
+  const toRec = (o) => ({ emp_number: o.emp_number || null, full_name: o.full_name, phone: o.phone, job_role: o.job_role, active: o.active, ...(o.notes ? { notes: o.notes } : {}) });
+  const fresh = good.filter(o => !o.existing), upd = updExisting ? good.filter(o => o.existing) : [];
   prog.textContent = "שומר עובדים…";
-  for (let i = 0; i < recs.length; i += 200) {
-    const { error } = await sb.from("employees").upsert(recs.slice(i, i + 200), { onConflict: "emp_number" });
-    if (error) return fail(error);
+  const idOf = new Map();
+  for (let i = 0; i < fresh.length; i += 200) {
+    const chunk = fresh.slice(i, i + 200);
+    const { data, error } = await sb.from("employees").insert(chunk.map(toRec)).select("id");
+    if (error) return fail(error.code === "23505" ? "מספר עובד מהקובץ כבר קיים במערכת" : error);
+    data.forEach((r, k) => idOf.set(chunk[k], r.id));
   }
+  for (const o of upd) {
+    const { error } = await sb.from("employees").update(toRec(o)).eq("id", o.existing.id);
+    if (error) return fail(error.code === "23505" ? `מספר עובד ${o.emp_number} כבר שייך לעובד אחר` : error);
+  }
+  good.filter(o => o.existing).forEach(o => idOf.set(o, o.existing.id));
+  const recs = fresh.length + upd.length;
   await loadAll();
-  const byNum = Object.fromEntries(S.employees.map(e => [String(e.emp_number), e]));
   // 2. הדרכות – רק אם שונות ממה שכבר רשום
   const jobs = [];
   for (const o of good) for (const [code, x] of Object.entries(o.tr)) {
-    const e = byNum[o.emp_number]; if (!e) continue;
-    const cur = S.trainings.find(t => t.employee_id === e.id && t.type_code === code);
+    const empId = idOf.get(o); if (!empId) continue;
+    const cur = S.trainings.find(t => t.employee_id === empId && t.type_code === code);
     if (cur && cur.training_date === x.d && cur.expiry_date === x.exp) continue;
-    jobs.push({ p_employee: e.id, p_type: code, p_training_date: x.d, p_expiry: x.x });
+    jobs.push({ p_employee: empId, p_type: code, p_training_date: x.d, p_expiry: x.x });
   }
   let done = 0, errs = 0;
   for (const j of jobs) {
@@ -853,7 +870,7 @@ async function runImport() {
     prog.textContent = `שומר הדרכות… ${++done}/${jobs.length}`;
   }
   await loadAll();
-  $("#impPreview").innerHTML = `<div class="calc s-green" style="margin-top:14px">הייבוא הושלם: ${recs.length} עובדים, ${jobs.length - errs} הדרכות${errs ? ` · ${errs} שגיאות` : ""}.</div>`;
+  $("#impPreview").innerHTML = `<div class="calc s-green" style="margin-top:14px">הייבוא הושלם: ${recs} עובדים, ${jobs.length - errs} הדרכות${errs ? ` · ${errs} שגיאות` : ""}.</div>`;
   toast("הייבוא הושלם ✔");
 }
 
