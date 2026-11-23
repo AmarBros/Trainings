@@ -296,12 +296,18 @@ const daysText = (d) => d > 1 ? `נותרו ${d} ימים` : d === 1 ? "נותר
 /* ---------------- status logic ---------------- */
 // ירוק: נותרו יותר מ-14 יום | כתום: 14 יום או פחות | אדום: פג | אפור: אין נתונים
 function required(type, emp) {
-  return type.required_for === "all" || (type.required_for === "operator" && emp.job_role === "operator");
+  return type.required_for === "all" || type.required_for === emp.job_role;
 }
+// הדרכה ללא תפוגה (למשל הצהרת בעל מקצוע) נשמרת עם תאריך 31/12/2999
+const fmtExp = (t) => !t ? "—" : t.expiry_date >= "2999-01-01" ? "ללא תפוגה" : fmt(t.expiry_date);
+const trainerName = (t) => !t ? "" : t.trainer_id ? (S.employees.find(x => x.id === t.trainer_id)?.full_name || "—") : (t.trainer_name || "");
+const professionals = (exceptId) => S.employees.filter(x => x.active && x.job_role === "professional" && x.id !== exceptId)
+  .sort((a, b) => a.full_name.localeCompare(b.full_name, "he"));
 function trStatus(emp, type) {
   const t = S.trainings.find(x => x.employee_id === emp.id && x.type_code === type.code);
   const req = required(type, emp);
   if (!t) return { key: req ? "gray" : "na", req, t: null, days: null, label: req ? "חסר" : "לא נדרש" };
+  if (type.no_expiry) return { key: "green", req, t, days: null, label: "קיים" };
   const days = daysBetween(todayISO(), t.expiry_date);
   const key = days <= 0 ? "red" : days <= (type.alert_days ?? 14) ? "orange" : "green";
   return { key, req, t, days, label: key === "red" ? "פג תוקף" : key === "orange" ? daysText(days) : "בתוקף" };
@@ -310,7 +316,7 @@ const RANK = { red: 4, orange: 3, gray: 2, green: 1, na: 0 };
 function empSummary(emp, types = activeTypes()) {
   const st = types.map(tp => ({ type: tp, ...trStatus(emp, tp) }));
   const worst = st.filter(s => s.req || s.t).reduce((w, s) => RANK[s.key] > RANK[w] ? s.key : w, "na");
-  const exps = st.filter(s => s.t).map(s => s.t.expiry_date).sort();
+  const exps = st.filter(s => s.t && !s.type.no_expiry).map(s => s.t.expiry_date).sort();
   return { st, worst, nearest: exps[0] ?? null };
 }
 const ROLES = { operator: "מפעיל משאבה", professional: "בעל מקצוע", other: "עובד אחר" };
@@ -492,7 +498,7 @@ function renderDash() {
       <div><div class="nm">${esc(e.full_name)}</div>
         <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${ROLES[e.job_role] || "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
       <div class="trs">${sm.st.map(s => `<div class="tr">${esc(s.type.name)}
-        <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
+        <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" && !s.type.no_expiry ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
     </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
   $$("#list .emp").forEach(el => el.onclick = () => openEmployee(el.dataset.id));
 }
@@ -520,15 +526,16 @@ function openEmployee(id) {
     <div class="tcard">
       <div class="hd"><b>${esc(s.type.name)}</b><span class="pill s-${s.key}">${s.label}</span></div>
       ${s.t ? `<div class="kv">
-          <span>תאריך הדרכה</span><span>${fmt(s.t.training_date)}</span>
-          <span>בתוקף עד</span><b>${fmt(s.t.expiry_date)}${s.t.expiry_manual ? ' <small class="muted">(הוזן ידנית)</small>' : ""}</b>
+          <span>${s.type.no_expiry ? "תאריך" : "תאריך הדרכה"}</span><span>${fmt(s.t.training_date)}</span>
+          <span>בתוקף עד</span><b>${fmtExp(s.t)}${s.t.expiry_manual ? ' <small class="muted">(הוזן ידנית)</small>' : ""}</b>
+          ${s.type.needs_trainer ? `<span>הודרך ע״י</span><b>${esc(trainerName(s.t)) || "—"}</b>` : ""}
           ${s.t.notes ? `<span>הערות</span><span>${esc(s.t.notes)}</span>` : ""}
           <span>תעודה</span><span>${s.t.certificate_path ? `<a href="#" data-cert="${esc(s.t.certificate_path)}">📄 צפייה בתעודה</a>` : "לא הועלתה"}</span>
         </div>
         <label class="btn ghost block" style="margin-bottom:10px">📎 ${s.t.certificate_path ? "החלפת תעודה" : "צירוף תעודה (צילום / PDF)"}
           <input type="file" class="hidden" accept="application/pdf,image/*" data-attach="${esc(s.t.id)}"></label>` : `<p class="muted" style="margin:0 0 10px">${s.req ? "לא הוזנו פרטי הדרכה" : "לא נדרשת לעובד זה"}</p>`}
       <div class="row">
-        <button class="btn primary grow" data-renew="${esc(s.type.code)}">${s.t ? "↻ חידוש הדרכה" : "＋ הזנת הדרכה"}</button>
+        <button class="btn primary grow" data-renew="${esc(s.type.code)}">${s.t ? (s.type.no_expiry ? "↻ עדכון" : "↻ חידוש הדרכה") : "＋ הזנת " + (s.type.no_expiry ? "הצהרה" : "הדרכה")}</button>
         <button class="btn ghost small" data-hist="${esc(s.type.code)}">היסטוריה</button>
       </div>
       <div class="hist hidden" id="hist-${esc(s.type.code)}"></div>
@@ -576,8 +583,8 @@ async function toggleHistory(e, code) {
   box.classList.remove("hidden"); box.innerHTML = `<span class="spinner"></span>`;
   const { data, error } = await sb.from("trainings").select("*").eq("employee_id", e.id).eq("type_code", code).order("created_at", { ascending: false });
   if (error) return fail(error);
-  box.innerHTML = data.length ? data.map(t => `<div><span>${t.is_current ? "<b>נוכחית</b> · " : ""}הדרכה ${fmt(t.training_date)}</span>
-      <span>עד ${fmt(t.expiry_date)}${t.certificate_path ? ` · <a href="#" data-cert="${esc(t.certificate_path)}">תעודה</a>` : ""}</span></div>`).join("")
+  box.innerHTML = data.length ? data.map(t => `<div><span>${t.is_current ? "<b>נוכחית</b> · " : ""}${fmt(t.training_date)}${trainerName(t) ? ` · ${esc(trainerName(t))}` : ""}</span>
+      <span>עד ${fmtExp(t)}${t.certificate_path ? ` · <a href="#" data-cert="${esc(t.certificate_path)}">תעודה</a>` : ""}</span></div>`).join("")
     : `<span class="muted">אין רשומות</span>`;
   bindCertLinks(box);
 }
@@ -596,15 +603,22 @@ function editEmployee(e) {
       <label class="f">סטטוס העסקה</label>
       <select class="i" name="active"><option value="1">פעיל</option><option value="0" ${e && !e.active ? "selected" : ""}>לא פעיל</option></select>
       <label class="f">הערות</label><textarea class="i" name="notes">${esc(e?.notes)}</textarea>
-      ${isNew ? types.map(t => `<label class="f">תאריך ביצוע הדרכת ${esc(t.name)} (לא תאריך התפוגה)</label><input class="i" type="date" name="tr_${esc(t.code)}" data-months="${t.validity_months}" data-alert="${t.alert_days}" max="${todayISO()}">
-        <div class="calc hidden" data-calc="${esc(t.code)}"></div>`).join("") : ""}
+      ${isNew ? types.filter(t => !t.needs_trainer && t.required_for !== "none").map(t => `<div data-for="${esc(t.required_for)}">
+        <label class="f">${t.no_expiry ? `תאריך ${esc(t.name)}` : `תאריך ביצוע הדרכת ${esc(t.name)} (לא תאריך התפוגה)`}</label><input class="i" type="date" name="tr_${esc(t.code)}" data-months="${t.no_expiry ? 0 : t.validity_months}" data-alert="${t.alert_days}" max="${todayISO()}">
+        <div class="calc hidden" data-calc="${esc(t.code)}"></div></div>`).join("") : ""}
+      ${isNew && types.some(t => t.needs_trainer) ? `<p class="muted" style="font-size:13px">${types.filter(t => t.needs_trainer).map(t => esc(t.name)).join(", ")} – מזינים אחרי שמירת העובד, מתוך כרטיס העובד (צריך לבחור מי הדריך).</p>` : ""}
       <button class="btn primary block" style="margin-top:18px" id="empSave">${isNew ? "שמירת עובד" : "שמירת שינויים"}</button>
     </form>`;
   openSheet(isNew ? "עובד חדש" : "עריכת פרטים", body, isNew ? null : () => openEmployee(e.id));
+  // מציגים רק הדרכות שנדרשות לתפקיד שנבחר
+  const showByRole = () => { const r = $("#empForm [name=job_role]").value;
+    $$("#empForm [data-for]").forEach(d => d.classList.toggle("hidden", !(d.dataset.for === "all" || d.dataset.for === r))); };
+  $("#empForm [name=job_role]").addEventListener("change", showByRole); showByRole();
   // הצגת תאריך התפוגה המחושב מיד אחרי בחירת תאריך ההדרכה
   $$("#empForm input[type=date][data-months]").forEach(inp => inp.oninput = () => {
     const box = $(`[data-calc="${inp.name.slice(3)}"]`);
     if (!inp.value) return box.classList.add("hidden");
+    if (+inp.dataset.months === 0) { box.className = "calc s-green"; box.textContent = "ללא תפוגה"; return; }
     const exp = addMonths(inp.value, +inp.dataset.months), left = daysBetween(todayISO(), exp);
     box.className = "calc " + (left <= 0 ? "s-red" : left <= +inp.dataset.alert ? "s-orange" : "s-green");
     box.textContent = `בתוקף עד ${fmt(exp)} · ${daysText(left)}`;
@@ -622,6 +636,8 @@ function editEmployee(e) {
       const { data, error } = await q;
       if (error) return fail(error.code === "23505" ? "מספר עובד זה כבר קיים במערכת" : error);
       if (isNew) for (const t of types) {
+        const inp = $(`#empForm [name="tr_${t.code}"]`);
+        if (!inp || inp.closest("[data-for]").classList.contains("hidden")) continue;
         const d = fd.get("tr_" + t.code);
         if (d) { const r = await sb.rpc("renew_training", { p_employee: data.id, p_type: t.code, p_training_date: d }); if (r.error) fail(r.error); }
       }
@@ -637,16 +653,24 @@ function renewForm(e, code) {
   const cur = S.trainings.find(x => x.employee_id === e.id && x.type_code === code);
   const body = `
     <form id="rnForm">
-      <p class="muted" style="margin-top:0">${esc(e.full_name)} · ${esc(type.name)} · תוקף ${type.validity_months % 12 === 0 ? (type.validity_months / 12 === 1 ? "שנה" : type.validity_months / 12 === 2 ? "שנתיים" : type.validity_months / 12 + " שנים") : type.validity_months + " חודשים"}</p>
-      <label class="f">תאריך ההדרכה החדשה</label>
+      <p class="muted" style="margin-top:0">${esc(e.full_name)} · ${esc(type.name)} · ${type.no_expiry ? "חד-פעמי, ללא תפוגה" : "תוקף " + (type.validity_months % 12 === 0 ? (type.validity_months / 12 === 1 ? "שנה" : type.validity_months / 12 === 2 ? "שנתיים" : type.validity_months / 12 + " שנים") : type.validity_months + " חודשים")}</p>
+      <label class="f">${type.no_expiry ? "תאריך" : "תאריך ההדרכה החדשה"}</label>
       <input class="i" type="date" name="d" id="rnDate" value="${todayISO()}" max="${todayISO()}" required>
       <div class="calc" id="rnCalc"></div>
-      <label class="check"><input type="checkbox" id="rnManual"> תאריך התפוגה שונה מהחישוב</label>
+      ${type.needs_trainer ? `<label class="f">בעל המקצוע שהדריך *</label>
+      <select class="i" id="rnTrainer" required>
+        <option value="">בחר בעל מקצוע…</option>
+        ${professionals(e.id).map(p => `<option value="${p.id}" ${cur?.trainer_id === p.id ? "selected" : ""}>${esc(p.full_name)}</option>`).join("")}
+        <option value="__other" ${cur && !cur.trainer_id && cur.trainer_name ? "selected" : ""}>אחר – הקלדת שם…</option>
+      </select>
+      ${professionals(e.id).length ? "" : `<p class="muted" style="font-size:13px;margin:6px 0 0">אין עדיין עובדים בתפקיד "בעל מקצוע". אפשר להגדיר תפקיד בכרטיס העובד, או לבחור "אחר" ולהקליד שם.</p>`}
+      <input class="i hidden" id="rnTrainerName" placeholder="שם בעל המקצוע" style="margin-top:8px" value="${esc(cur && !cur.trainer_id ? cur.trainer_name : "")}">` : ""}
+      <label class="check ${type.no_expiry ? "hidden" : ""}"><input type="checkbox" id="rnManual"> תאריך התפוגה שונה מהחישוב</label>
       <div id="rnManualBox" class="hidden"><label class="f">תאריך תפוגה</label><input class="i" type="date" name="exp" id="rnExp"></div>
       <label class="f">תעודה / אישור (PDF או צילום – לא חובה)</label>
       <input class="i" type="file" name="file" accept="application/pdf,image/*">
-      <label class="f">הערות</label><input class="i" name="notes" placeholder="למשל: שם המדריך / הגוף המכשיר">
-      ${cur ? `<p class="muted" style="font-size:13px">ההדרכה הקודמת (עד ${fmt(cur.expiry_date)}) תישמר בהיסטוריה.</p>` : ""}
+      <label class="f">הערות</label><input class="i" name="notes" placeholder="${type.needs_trainer ? "הערות" : "למשל: שם המדריך / הגוף המכשיר"}">
+      ${cur ? `<p class="muted" style="font-size:13px">הרשומה הקודמת (${type.no_expiry ? fmt(cur.training_date) : "עד " + fmt(cur.expiry_date)}) תישמר בהיסטוריה.</p>` : ""}
       <button class="btn green block" style="margin-top:16px" id="rnSave">✔ שמירת הדרכה</button>
     </form>`;
   openSheet(cur ? "חידוש הדרכה" : "הזנת הדרכה", body, () => openEmployee(e.id));
@@ -654,6 +678,7 @@ function renewForm(e, code) {
     const d = $("#rnDate").value;
     const exp = $("#rnManual").checked && $("#rnExp").value ? $("#rnExp").value : d ? addMonths(d, type.validity_months) : null;
     const box = $("#rnCalc");
+    if (type.no_expiry) { box.className = "calc s-green"; box.textContent = "ללא תפוגה – נשמר פעם אחת"; return; }
     if (!exp) { box.textContent = ""; return; }
     const left = daysBetween(todayISO(), exp);
     box.className = "calc " + (left <= 0 ? "s-red" : left <= type.alert_days ? "s-orange" : "s-green");
@@ -666,15 +691,18 @@ function renewForm(e, code) {
     calc();
   };
   calc();
+  const trSel = $("#rnTrainer"), trName = $("#rnTrainerName");
+  if (trSel) { const sync = () => { trName.classList.toggle("hidden", trSel.value !== "__other"); trName.required = trSel.value === "__other"; }; trSel.onchange = sync; sync(); }
   $("#rnForm").onsubmit = async (ev) => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
     const file = fd.get("file");
+    const trainer = !trSel ? {} : trSel.value === "__other" ? { p_trainer_name: trName.value.trim() } : { p_trainer_id: trSel.value };
     await busy($("#rnSave"), async () => {
       const { data: row, error } = await sb.rpc("renew_training", {
         p_employee: e.id, p_type: code, p_training_date: fd.get("d"),
         p_expiry: $("#rnManual").checked && fd.get("exp") ? fd.get("exp") : null,
-        p_notes: fd.get("notes").trim() || null,
+        p_notes: fd.get("notes").trim() || null, ...trainer,
       });
       if (error) return fail(error);
       if (file && file.size) {
@@ -701,7 +729,10 @@ const COLS = [
   ["job_role", "תפקיד (מפעיל משאבה / בעל מקצוע / עובד אחר)"], ["active", "סטטוס (פעיל / לא פעיל)"],
 ];
 function typeCols() {
-  return activeTypes().flatMap(t => [[`d_${t.code}`, `תאריך הדרכת ${t.name}`], [`x_${t.code}`, `תאריך תפוגת ${t.name} (לא חובה)`]]);
+  return activeTypes().flatMap(t => [
+    [`d_${t.code}`, t.no_expiry || t.name.startsWith("הדרכ") ? `תאריך ${t.name}` : `תאריך הדרכת ${t.name}`],
+    ...(t.needs_trainer ? [[`t_${t.code}`, `מדריך – ${t.name}`]] : []),
+    ...(t.no_expiry ? [] : [[`x_${t.code}`, `תאריך תפוגת ${t.name} (לא חובה)`]])]);
 }
 function stamp() { return todayISO().split("-").reverse().join("-"); }
 function saveBook(wb, name) { XLSX.writeFile(wb, name, { compression: true }); }
@@ -714,7 +745,8 @@ function sheetFrom(rows, widths) {
 
 $("#tplBtn").onclick = () => {
   const head = [...COLS, ...typeCols(), ["notes", "הערות"]].map(c => c[1]);
-  const ex = ["1001", "ישראל ישראלי", "050-1234567", "מפעיל משאבה", "פעיל", ...activeTypes().flatMap(() => ["15/03/2025", ""]), ""];
+  const ex = ["1001", "ישראל ישראלי", "050-1234567", "מפעיל משאבה", "פעיל",
+    ...typeCols().map(([k]) => k.startsWith("d_") && !k.endsWith("pro_decl") ? "15/03/2025" : k.startsWith("t_") ? "שם בעל המקצוע" : ""), ""];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, sheetFrom([head, ex], head.map(h => Math.max(14, h.length + 2))), "עובדים");
   wb.Workbook = { Views: [{ RTL: true }] };
@@ -728,17 +760,18 @@ $("#exportBtn").onclick = () => busy($("#exportBtn"), async () => {
   const empById = Object.fromEntries(S.employees.map(e => [e.id, e]));
   const typeName = Object.fromEntries(S.types.map(t => [t.code, t.name]));
   const head = ["מספר עובד", "שם מלא", "טלפון", "תפקיד", "סטטוס העסקה",
-    ...types.flatMap(t => [`${t.name} – תאריך הדרכה`, `${t.name} – תפוגה`, `${t.name} – מצב`]), "הערות"];
+    ...types.flatMap(t => [`${t.name} – תאריך`, ...(t.needs_trainer ? [`${t.name} – מדריך`] : []), `${t.name} – תפוגה`, `${t.name} – מצב`]), "הערות"];
   const statusHe = { green: "בתוקף", orange: "פג בקרוב", red: "פג תוקף", gray: "חסר", na: "לא נדרש" };
+  const stHe = (s) => s.key === "orange" ? daysText(s.days) : s.type?.no_expiry && s.t ? "קיים" : statusHe[s.key];
   const rows = S.employees.slice().sort((a, b) => (a.emp_number ? 0 : 1) - (b.emp_number ? 0 : 1) || String(a.emp_number ?? "").localeCompare(String(b.emp_number ?? ""), "he", { numeric: true }) || a.full_name.localeCompare(b.full_name, "he")).map(e => [
     e.emp_number ?? "", e.full_name, e.phone || "", ROLES[e.job_role] || "עובד אחר", e.active ? "פעיל" : "לא פעיל",
-    ...types.flatMap(t => { const s = trStatus(e, t); return [s.t ? fmt(s.t.training_date) : "", s.t ? fmt(s.t.expiry_date) : "", s.key === "orange" ? daysText(s.days) : statusHe[s.key]]; }),
+    ...types.flatMap(t => { const s = { type: t, ...trStatus(e, t) }; return [s.t ? fmt(s.t.training_date) : "", ...(t.needs_trainer ? [trainerName(s.t)] : []), s.t ? fmtExp(s.t) : "", stHe(s)]; }),
     e.notes || ""]);
-  const hist = [["מספר עובד", "שם", "הדרכה", "תאריך הדרכה", "תפוגה", "נוכחית", "תוקף הוזן ידנית", "תעודה", "הערות", "נרשם בתאריך"],
-    ...all.map(t => { const e = empById[t.employee_id] || {}; return [e.emp_number ?? "", e.full_name, typeName[t.type_code], fmt(t.training_date), fmt(t.expiry_date), t.is_current ? "כן" : "", t.expiry_manual ? "כן" : "", t.certificate_path ? "יש" : "", t.notes || "", fmt(t.created_at.slice(0, 10))]; })];
+  const hist = [["מספר עובד", "שם", "הדרכה", "תאריך הדרכה", "מדריך", "תפוגה", "נוכחית", "תוקף הוזן ידנית", "תעודה", "הערות", "נרשם בתאריך"],
+    ...all.map(t => { const e = empById[t.employee_id] || {}; return [e.emp_number ?? "", e.full_name, typeName[t.type_code], fmt(t.training_date), trainerName(t), fmtExp(t), t.is_current ? "כן" : "", t.expiry_manual ? "כן" : "", t.certificate_path ? "יש" : "", t.notes || "", fmt(t.created_at.slice(0, 10))]; })];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, sheetFrom([head, ...rows], head.map(h => Math.max(12, Math.min(28, h.length + 2)))), "עובדים והדרכות");
-  XLSX.utils.book_append_sheet(wb, sheetFrom(hist, [10, 18, 18, 12, 12, 8, 10, 8, 20, 12]), "היסטוריית הדרכות");
+  XLSX.utils.book_append_sheet(wb, sheetFrom(hist, [10, 18, 18, 12, 16, 12, 8, 10, 8, 20, 12]), "היסטוריית הדרכות");
   wb.Workbook = { Views: [{ RTL: true }] };
   saveBook(wb, `דוח-הדרכות-${stamp()}.xlsx`);
   toast("הדוח ירד למכשיר");
@@ -769,9 +802,15 @@ function parseDate(v) {
 }
 function mapHeader(h) {
   const s = String(h || "").replace(/["'״׳]/g, "").trim();
+  if (/מדריך|הודרך|הדריך/.test(s)) { // עמודת "מי הדריך"
+    const tt = activeTypes().filter(t => t.needs_trainer);
+    const hit = tt.find(t => s.includes(t.name.replace(/["'״׳]/g, ""))) || tt[0];
+    return hit ? `t_${hit.code}` : null;
+  }
   for (const t of activeTypes()) {
-    const words = t.name.split(/\s+/).filter(w => w.length > 2);
-    const hit = s.includes(t.name) || (t.code === "height" && s.includes("גובה")) || (t.code === "operator" && s.includes("מפעיל") && s.includes("הדרכ")) || words.every(w => s.includes(w));
+    const nm = t.name.replace(/["'״׳]/g, "");
+    const words = nm.split(/\s+/).filter(w => w.length > 2);
+    const hit = s.includes(nm) || (t.code === "height" && s.includes("גובה")) || (t.code === "operator" && s.includes("מפעיל") && s.includes("הדרכ")) || words.every(w => s.includes(w));
     if (hit) return /תפוג|תוקף/.test(s) ? `x_${t.code}` : `d_${t.code}`;
   }
   if (/מספר|מס עובד|מס\.? עובד|^מס$/.test(s)) return "emp_number";
@@ -803,6 +842,8 @@ $("#impFile").onchange = async (ev) => {
     if (hi < 0) return fail("לא נמצאה שורת כותרות עם עמודת 'שם'. מומלץ להשתמש בתבנית.");
     const map = rows[hi].map(mapHeader);
     const findExisting = makeMatcher();
+    const normName = (t) => String(t ?? "").replace(/\s+/g, " ").trim();
+    const pros = new Map(S.employees.filter(x => x.job_role === "professional").map(x => [normName(x.full_name), x]));
     const seen = {};
     IMPORT = [];
     rows.slice(hi + 1).forEach((r, i) => {
@@ -822,7 +863,15 @@ $("#impFile").onchange = async (ev) => {
       for (const t of activeTypes()) {
         const d = parseDate(o["d_" + t.code]), x = parseDate(o["x_" + t.code]);
         if (d.err) o.errs.push(d.err); if (x.err) o.errs.push(x.err);
+        if (t.no_expiry) { if (d.v) o.tr[t.code] = { d: d.v, x: null, exp: "2999-12-31" }; continue; }
         if (d.v || x.v) o.tr[t.code] = { d: d.v, x: x.v || null, exp: x.v || addMonths(d.v, t.validity_months) };
+        if (t.needs_trainer && o.tr[t.code]) {
+          const nm = normName(o["t_" + t.code]);
+          if (!nm) o.errs.push(`חסר שם המדריך ל"${t.name}"`);
+          const pro = pros.get(nm);
+          o.tr[t.code].trainer = pro ? { p_trainer_id: pro.id } : { p_trainer_name: nm };
+          o.tr[t.code].trainerLabel = nm;
+        }
       }
       const ex = o.full_name ? findExisting(o) : null;
       if (ex === "ambiguous") o.errs.push("יש במערכת כמה עובדים בשם הזה – הוסף מספר עובד");
@@ -850,7 +899,7 @@ function renderImportPreview(name) {
         <td>${esc(o.emp_number) || "—"}</td><td>${esc(o.full_name)}</td><td>${ROLES[o.job_role]}</td>
         ${types.map(t => { const x = o.tr[t.code]; if (!x) return "<td class='muted'>—</td>";
           const d = daysBetween(todayISO(), x.exp); const k = d <= 0 ? "red" : d <= t.alert_days ? "orange" : "green";
-          return `<td>${fmt(x.d)}<br><span class="pill s-${k}">עד ${fmt(x.exp)}</span></td>`; }).join("")}</tr>`).join("")}
+          return `<td>${fmt(x.d)}${x.trainerLabel ? `<br><small>מדריך: ${esc(x.trainerLabel)}</small>` : ""}<br><span class="pill s-${k}">${t.no_expiry ? "ללא תפוגה" : "עד " + fmt(x.exp)}</span></td>`; }).join("")}</tr>`).join("")}
     </table></div>
     <label class="check"><input type="checkbox" id="impUpd" checked> לעדכן גם את הפרטים של עובדים קיימים</label>
     <div class="row" style="margin-top:14px">
@@ -889,7 +938,7 @@ async function runImport() {
     const empId = idOf.get(o); if (!empId) continue;
     const cur = S.trainings.find(t => t.employee_id === empId && t.type_code === code);
     if (cur && cur.training_date === x.d && cur.expiry_date === x.exp) continue;
-    jobs.push({ p_employee: empId, p_type: code, p_training_date: x.d, p_expiry: x.x });
+    jobs.push({ p_employee: empId, p_type: code, p_training_date: x.d, p_expiry: x.x, ...(x.trainer || {}) });
   }
   let done = 0, errs = 0;
   for (const j of jobs) {
@@ -962,12 +1011,14 @@ async function renderSettings() {
     <div class="card" style="margin-top:14px">
       <h2 class="sec" style="margin-top:0">סוגי הדרכות</h2>
       <div class="scroll" style="max-height:none"><table class="tbl">
-        <tr><th>שם</th><th>תוקף (חודשים)</th><th>התראה (ימים לפני)</th><th>נדרש עבור</th><th>פעיל</th></tr>
+        <tr><th>שם</th><th>תוקף (חודשים)</th><th>התראה (ימים לפני)</th><th>נדרש עבור</th><th>ללא תפוגה</th><th>נדרש מדריך</th><th>פעיל</th></tr>
         ${types.map(t => `<tr data-code="${esc(t.code)}">
           <td><input class="i" style="min-width:140px" data-k="name" value="${esc(t.name)}"></td>
           <td><input class="i" type="number" min="1" style="width:90px" data-k="validity_months" value="${t.validity_months}"></td>
           <td><input class="i" type="number" min="1" style="width:90px" data-k="alert_days" value="${t.alert_days}"></td>
-          <td><select class="i" data-k="required_for">${[["all", "כל העובדים"], ["operator", "מפעילי משאבה"], ["none", "לא חובה"]].map(([k, l]) => `<option value="${k}" ${t.required_for === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><select class="i" data-k="required_for">${[["all", "כל העובדים"], ["operator", "מפעילי משאבה"], ["professional", "בעלי מקצוע"], ["none", "לא חובה"]].map(([k, l]) => `<option value="${k}" ${t.required_for === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><input type="checkbox" style="width:22px;height:22px" data-k="no_expiry" ${t.no_expiry ? "checked" : ""}></td>
+          <td><input type="checkbox" style="width:22px;height:22px" data-k="needs_trainer" ${t.needs_trainer ? "checked" : ""}></td>
           <td><input type="checkbox" style="width:22px;height:22px" data-k="active" ${t.active ? "checked" : ""}></td></tr>`).join("")}
       </table></div>
       <p class="muted" style="font-size:13px">שינוי תקופת התוקף משפיע על הדרכות שיוזנו מעכשיו. הדרכות קיימות לא משתנות.</p>
