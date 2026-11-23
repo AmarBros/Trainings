@@ -312,10 +312,12 @@ function trStatus(emp, type) {
   const key = days <= 0 ? "red" : days <= (type.alert_days ?? 14) ? "orange" : "green";
   return { key, req, t, days, label: key === "red" ? "פג תוקף" : key === "orange" ? daysText(days) : "בתוקף" };
 }
+// מציגים רק הדרכות שנדרשות מהעובד לפי התפקיד (הדרכה "לא חובה" – רק אם הוזנה)
+const shown = (s) => s.req || (s.t && s.type.required_for === "none");
 const RANK = { red: 4, orange: 3, gray: 2, green: 1, na: 0 };
 function empSummary(emp, types = activeTypes()) {
   const st = types.map(tp => ({ type: tp, ...trStatus(emp, tp) }));
-  const worst = st.filter(s => s.req || s.t).reduce((w, s) => RANK[s.key] > RANK[w] ? s.key : w, "na");
+  const worst = st.filter(shown).reduce((w, s) => RANK[s.key] > RANK[w] ? s.key : w, "na");
   const exps = st.filter(s => s.t && !s.type.no_expiry).map(s => s.t.expiry_date).sort();
   return { st, worst, nearest: exps[0] ?? null };
 }
@@ -452,7 +454,7 @@ function renderDash() {
   for (const e of act) {
     const sm = empSummary(e, types);
     if (sm.st.filter(s => s.req).every(s => s.key === "green" || s.key === "orange")) allOk++;
-    for (const s of sm.st) { if (s.key === "orange") soon++; if (s.key === "red" && (s.req || s.t)) expired++; if (s.key === "gray") missing++; }
+    for (const s of sm.st.filter(shown)) { if (s.key === "orange") soon++; if (s.key === "red") expired++; if (s.key === "gray") missing++; }
   }
   const stat = (f, n, t, c) => `<button class="stat ${c} ${S.f.status === f ? "on" : ""}" data-f="${f}"><div class="n">${n}</div><div class="t">${t}</div></button>`;
   $("#stats").innerHTML =
@@ -497,7 +499,7 @@ function renderDash() {
     <div class="emp b-${sm.worst} ${e.active ? "" : "inactive"}" data-id="${e.id}">
       <div><div class="nm">${esc(e.full_name)}</div>
         <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${ROLES[e.job_role] || "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
-      <div class="trs">${sm.st.filter(s => s.req || s.t).map(s => `<div class="tr">${esc(s.type.name)}
+      <div class="trs">${sm.st.filter(shown).map(s => `<div class="tr">${esc(s.type.name)}
         <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" && !s.type.no_expiry ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
     </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
   $$("#list .emp").forEach(el => el.onclick = () => openEmployee(el.dataset.id));
@@ -522,7 +524,7 @@ function openEmployee(id) {
       </div>
       <button class="btn ghost small" id="edEmp">✎ עריכת פרטים</button>
     </div>
-    ${sm.st.filter(s => s.req || s.t).map(s => `
+    ${sm.st.filter(shown).map(s => `
     <div class="tcard">
       <div class="hd"><b>${esc(s.type.name)}</b><span class="pill s-${s.key}">${s.label}</span></div>
       ${s.t ? `<div class="kv">
