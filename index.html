@@ -296,7 +296,7 @@ const daysText = (d) => d > 1 ? `נותרו ${d} ימים` : d === 1 ? "נותר
 /* ---------------- status logic ---------------- */
 // ירוק: נותרו יותר מ-14 יום | כתום: 14 יום או פחות | אדום: פג | אפור: אין נתונים
 function required(type, emp) {
-  return type.required_for === "all" || type.required_for === emp.job_role;
+  return type.required_for === "all" || String(type.required_for).split(",").includes(emp.job_role);
 }
 // הדרכה ללא תפוגה (למשל הצהרת בעל מקצוע) נשמרת עם תאריך 31/12/2999
 const fmtExp = (t) => !t ? "—" : t.expiry_date >= "2999-01-01" ? "ללא תפוגה" : fmt(t.expiry_date);
@@ -497,7 +497,7 @@ function renderDash() {
     <div class="emp b-${sm.worst} ${e.active ? "" : "inactive"}" data-id="${e.id}">
       <div><div class="nm">${esc(e.full_name)}</div>
         <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${ROLES[e.job_role] || "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
-      <div class="trs">${sm.st.map(s => `<div class="tr">${esc(s.type.name)}
+      <div class="trs">${sm.st.filter(s => s.req || s.t).map(s => `<div class="tr">${esc(s.type.name)}
         <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" && !s.type.no_expiry ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
     </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
   $$("#list .emp").forEach(el => el.onclick = () => openEmployee(el.dataset.id));
@@ -522,7 +522,7 @@ function openEmployee(id) {
       </div>
       <button class="btn ghost small" id="edEmp">✎ עריכת פרטים</button>
     </div>
-    ${sm.st.map(s => `
+    ${sm.st.filter(s => s.req || s.t).map(s => `
     <div class="tcard">
       <div class="hd"><b>${esc(s.type.name)}</b><span class="pill s-${s.key}">${s.label}</span></div>
       ${s.t ? `<div class="kv">
@@ -612,7 +612,7 @@ function editEmployee(e) {
   openSheet(isNew ? "עובד חדש" : "עריכת פרטים", body, isNew ? null : () => openEmployee(e.id));
   // מציגים רק הדרכות שנדרשות לתפקיד שנבחר
   const showByRole = () => { const r = $("#empForm [name=job_role]").value;
-    $$("#empForm [data-for]").forEach(d => d.classList.toggle("hidden", !(d.dataset.for === "all" || d.dataset.for === r))); };
+    $$("#empForm [data-for]").forEach(d => d.classList.toggle("hidden", !(d.dataset.for === "all" || d.dataset.for.split(",").includes(r)))); };
   $("#empForm [name=job_role]").addEventListener("change", showByRole); showByRole();
   // הצגת תאריך התפוגה המחושב מיד אחרי בחירת תאריך ההדרכה
   $$("#empForm input[type=date][data-months]").forEach(inp => inp.oninput = () => {
@@ -1016,7 +1016,7 @@ async function renderSettings() {
           <td><input class="i" style="min-width:140px" data-k="name" value="${esc(t.name)}"></td>
           <td><input class="i" type="number" min="1" style="width:90px" data-k="validity_months" value="${t.validity_months}"></td>
           <td><input class="i" type="number" min="1" style="width:90px" data-k="alert_days" value="${t.alert_days}"></td>
-          <td><select class="i" data-k="required_for">${[["all", "כל העובדים"], ["operator", "מפעילי משאבה"], ["professional", "בעלי מקצוע"], ["none", "לא חובה"]].map(([k, l]) => `<option value="${k}" ${t.required_for === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><select class="i" data-k="required_for">${[["all", "כל העובדים"], ["operator", "מפעילי משאבה"], ["professional", "בעלי מקצוע"], ["operator,professional", "מפעילים ובעלי מקצוע"], ["none", "לא חובה"]].map(([k, l]) => `<option value="${k}" ${t.required_for === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
           <td><input type="checkbox" style="width:22px;height:22px" data-k="no_expiry" ${t.no_expiry ? "checked" : ""}></td>
           <td><input type="checkbox" style="width:22px;height:22px" data-k="needs_trainer" ${t.needs_trainer ? "checked" : ""}></td>
           <td><input type="checkbox" style="width:22px;height:22px" data-k="active" ${t.active ? "checked" : ""}></td></tr>`).join("")}
