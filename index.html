@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="הדרכות">
-<title>הדרכות עובדים – אחים אמר</title>
+<title>הדרכות עובדים – אחים אמר | דניה סלע</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script>
@@ -160,7 +160,8 @@ h2.sec{font-size:18px;margin:22px 0 10px}
   <div class="card">
     <div class="logo">א</div>
     <h1>הדרכות עובדים</h1>
-    <div class="muted" style="margin-bottom:10px">אחים אמר – שאיבת בטון</div>
+    <div class="muted">אחים אמר – שאיבת בטון</div>
+    <div class="muted" style="margin-bottom:10px">דניה סלע – שאיבת בטון</div>
     <form id="loginForm">
       <label class="f">דוא"ל</label>
       <input class="i" type="email" id="lgEmail" autocomplete="username" required dir="ltr">
@@ -183,7 +184,7 @@ h2.sec{font-size:18px;margin:22px 0 10px}
 <div id="app" class="hidden">
   <header class="top">
     <div class="logo">א</div>
-    <h1>הדרכות עובדים<small id="hdrCompany">אחים אמר</small></h1>
+    <h1>הדרכות עובדים<small id="hdrCompany">אחים אמר</small><small>דניה סלע – שאיבת בטון</small></h1>
     <div class="who"><div id="hdrUser"></div><button id="logoutBtn">יציאה</button></div>
   </header>
   <nav class="tabs" id="tabs">
@@ -594,10 +595,19 @@ function editEmployee(e) {
       <label class="f">סטטוס העסקה</label>
       <select class="i" name="active"><option value="1">פעיל</option><option value="0" ${e && !e.active ? "selected" : ""}>לא פעיל</option></select>
       <label class="f">הערות</label><textarea class="i" name="notes">${esc(e?.notes)}</textarea>
-      ${isNew ? types.map(t => `<label class="f">תאריך ${esc(t.name)} (אם ידוע)</label><input class="i" type="date" name="tr_${esc(t.code)}" max="${todayISO()}">`).join("") : ""}
+      ${isNew ? types.map(t => `<label class="f">תאריך ביצוע הדרכת ${esc(t.name)} (לא תאריך התפוגה)</label><input class="i" type="date" name="tr_${esc(t.code)}" data-months="${t.validity_months}" data-alert="${t.alert_days}" max="${todayISO()}">
+        <div class="calc hidden" data-calc="${esc(t.code)}"></div>`).join("") : ""}
       <button class="btn primary block" style="margin-top:18px" id="empSave">${isNew ? "שמירת עובד" : "שמירת שינויים"}</button>
     </form>`;
   openSheet(isNew ? "עובד חדש" : "עריכת פרטים", body, isNew ? null : () => openEmployee(e.id));
+  // הצגת תאריך התפוגה המחושב מיד אחרי בחירת תאריך ההדרכה
+  $$("#empForm input[type=date][data-months]").forEach(inp => inp.oninput = () => {
+    const box = $(`[data-calc="${inp.name.slice(3)}"]`);
+    if (!inp.value) return box.classList.add("hidden");
+    const exp = addMonths(inp.value, +inp.dataset.months), left = daysBetween(todayISO(), exp);
+    box.className = "calc " + (left <= 0 ? "s-red" : left <= +inp.dataset.alert ? "s-orange" : "s-green");
+    box.textContent = `בתוקף עד ${fmt(exp)} · ${daysText(left)}`;
+  });
   $("#empForm").onsubmit = async (ev) => {
     ev.preventDefault();
     const fd = new FormData(ev.target);
