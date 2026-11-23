@@ -313,6 +313,7 @@ function empSummary(emp, types = activeTypes()) {
   const exps = st.filter(s => s.t).map(s => s.t.expiry_date).sort();
   return { st, worst, nearest: exps[0] ?? null };
 }
+const ROLES = { operator: "מפעיל משאבה", professional: "בעל מקצוע", other: "עובד אחר" };
 const activeTypes = () => S.types.filter(t => t.active);
 
 /* ---------------- ui helpers ---------------- */
@@ -489,7 +490,7 @@ function renderDash() {
   $("#list").innerHTML = rows.length ? rows.map(({ e, sm }) => `
     <div class="emp b-${sm.worst} ${e.active ? "" : "inactive"}" data-id="${e.id}">
       <div><div class="nm">${esc(e.full_name)}</div>
-        <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${e.job_role === "operator" ? "מפעיל משאבה" : "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
+        <div class="meta">${e.emp_number ? `מס' ${esc(e.emp_number)} · ` : ""}${ROLES[e.job_role] || "עובד"}${e.active ? "" : " · לא פעיל"}</div></div>
       <div class="trs">${sm.st.map(s => `<div class="tr">${esc(s.type.name)}
         <span class="pill s-${s.key}">${s.label}${s.t && s.key !== "orange" ? ` · ${fmt(s.t.expiry_date)}` : ""}</span></div>`).join("")}</div>
     </div>`).join("") : `<div class="empty">לא נמצאו עובדים לפי הסינון</div>`;
@@ -509,7 +510,7 @@ function openEmployee(id) {
       <div class="kv">
         <span>מספר עובד</span><b>${esc(e.emp_number) || "—"}</b>
         <span>טלפון</span><span>${e.phone ? `<a href="tel:${esc(e.phone)}" dir="ltr">${esc(e.phone)}</a>` : "—"}</span>
-        <span>תפקיד</span><span>${e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר"}</span>
+        <span>תפקיד</span><span>${ROLES[e.job_role] || "עובד אחר"}</span>
         <span>סטטוס</span><span>${e.active ? "פעיל" : "<b style='color:var(--red)'>לא פעיל</b>"}</span>
         ${e.notes ? `<span>הערות</span><span style="white-space:pre-wrap">${esc(e.notes)}</span>` : ""}
       </div>
@@ -591,7 +592,7 @@ function editEmployee(e) {
       <label class="f">מספר עובד (לא חובה)</label><input class="i" name="emp_number" value="${esc(e?.emp_number)}" inputmode="numeric">
       <label class="f">טלפון</label><input class="i" name="phone" type="tel" dir="ltr" style="text-align:right" value="${esc(e?.phone)}">
       <label class="f">תפקיד</label>
-      <select class="i" name="job_role"><option value="operator" ${e?.job_role === "operator" ? "selected" : ""}>מפעיל משאבה</option><option value="other" ${e && e.job_role !== "operator" ? "selected" : ""}>עובד אחר</option></select>
+      <select class="i" name="job_role">${Object.entries(ROLES).map(([k, l]) => `<option value="${k}" ${(e?.job_role ?? "operator") === k ? "selected" : ""}>${l}</option>`).join("")}</select>
       <label class="f">סטטוס העסקה</label>
       <select class="i" name="active"><option value="1">פעיל</option><option value="0" ${e && !e.active ? "selected" : ""}>לא פעיל</option></select>
       <label class="f">הערות</label><textarea class="i" name="notes">${esc(e?.notes)}</textarea>
@@ -697,7 +698,7 @@ async function uploadCert(empId, trId, file) {
 /* ================= EXCEL ================= */
 const COLS = [
   ["emp_number", "מספר עובד (לא חובה)"], ["full_name", "שם מלא"], ["phone", "טלפון"],
-  ["job_role", "תפקיד (מפעיל משאבה / עובד אחר)"], ["active", "סטטוס (פעיל / לא פעיל)"],
+  ["job_role", "תפקיד (מפעיל משאבה / בעל מקצוע / עובד אחר)"], ["active", "סטטוס (פעיל / לא פעיל)"],
 ];
 function typeCols() {
   return activeTypes().flatMap(t => [[`d_${t.code}`, `תאריך הדרכת ${t.name}`], [`x_${t.code}`, `תאריך תפוגת ${t.name} (לא חובה)`]]);
@@ -730,7 +731,7 @@ $("#exportBtn").onclick = () => busy($("#exportBtn"), async () => {
     ...types.flatMap(t => [`${t.name} – תאריך הדרכה`, `${t.name} – תפוגה`, `${t.name} – מצב`]), "הערות"];
   const statusHe = { green: "בתוקף", orange: "פג בקרוב", red: "פג תוקף", gray: "חסר", na: "לא נדרש" };
   const rows = S.employees.slice().sort((a, b) => (a.emp_number ? 0 : 1) - (b.emp_number ? 0 : 1) || String(a.emp_number ?? "").localeCompare(String(b.emp_number ?? ""), "he", { numeric: true }) || a.full_name.localeCompare(b.full_name, "he")).map(e => [
-    e.emp_number ?? "", e.full_name, e.phone || "", e.job_role === "operator" ? "מפעיל משאבה" : "עובד אחר", e.active ? "פעיל" : "לא פעיל",
+    e.emp_number ?? "", e.full_name, e.phone || "", ROLES[e.job_role] || "עובד אחר", e.active ? "פעיל" : "לא פעיל",
     ...types.flatMap(t => { const s = trStatus(e, t); return [s.t ? fmt(s.t.training_date) : "", s.t ? fmt(s.t.expiry_date) : "", s.key === "orange" ? daysText(s.days) : statusHe[s.key]]; }),
     e.notes || ""]);
   const hist = [["מספר עובד", "שם", "הדרכה", "תאריך הדרכה", "תפוגה", "נוכחית", "תוקף הוזן ידנית", "תעודה", "הערות", "נרשם בתאריך"],
@@ -811,7 +812,7 @@ $("#impFile").onchange = async (ev) => {
       o.emp_number = String(o.emp_number ?? "").trim().replace(/\.0$/, "");
       o.full_name = String(o.full_name ?? "").trim();
       o.phone = String(o.phone ?? "").trim() || null;
-      o.job_role = /מפעיל/.test(String(o.job_role ?? "")) ? "operator" : "other";
+      o.job_role = /מפעיל/.test(String(o.job_role ?? "")) ? "operator" : /מקצוע/.test(String(o.job_role ?? "")) ? "professional" : "other";
       o.active = !/לא/.test(String(o.active ?? ""));
       o.notes = String(o.notes ?? "").trim() || null;
       if (!o.full_name) o.errs.push("חסר שם");
@@ -846,7 +847,7 @@ function renderImportPreview(name) {
     <div class="scroll"><table class="tbl">
       <tr><th>שורה</th><th>מצב</th><th>מס' עובד</th><th>שם</th><th>תפקיד</th>${types.map(t => `<th>${esc(t.name)}</th>`).join("")}</tr>
       ${IMPORT.map(o => `<tr><td>${o.line}</td><td>${tag[o.action]}${o.errs.length ? `<div style="color:var(--red);font-size:12px">${o.errs.map(esc).join("<br>")}</div>` : ""}</td>
-        <td>${esc(o.emp_number) || "—"}</td><td>${esc(o.full_name)}</td><td>${o.job_role === "operator" ? "מפעיל" : "אחר"}</td>
+        <td>${esc(o.emp_number) || "—"}</td><td>${esc(o.full_name)}</td><td>${ROLES[o.job_role]}</td>
         ${types.map(t => { const x = o.tr[t.code]; if (!x) return "<td class='muted'>—</td>";
           const d = daysBetween(todayISO(), x.exp); const k = d <= 0 ? "red" : d <= t.alert_days ? "orange" : "green";
           return `<td>${fmt(x.d)}<br><span class="pill s-${k}">עד ${fmt(x.exp)}</span></td>`; }).join("")}</tr>`).join("")}
